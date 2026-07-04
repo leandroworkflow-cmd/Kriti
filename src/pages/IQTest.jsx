@@ -303,6 +303,13 @@ Timestamp de aleatoriedade: ${Date.now()}-${Math.random()}`,
               Iniciar Teste
             </Button>
           </div>
+
+          <button
+            onClick={() => db.auth.logout("/login")}
+            className="w-full text-center text-sm text-muted-foreground hover:text-foreground mt-6 transition-colors"
+          >
+            Sair da conta
+          </button>
         </motion.div>
       </div>
     );
