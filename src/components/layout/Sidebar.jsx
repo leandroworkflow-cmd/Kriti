@@ -31,7 +31,7 @@ export default function Sidebar() {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shrink-0">
             <Brain className="w-5 h-5 text-white" />
           </div>
-          <img src="https://media.db.com/images/public/6a47f96b2cde0b9e4af52310/0033d1937_ChatGPTImage3dejulde202623_53_05.png" alt="Kriti" className="h-8 object-contain" />
+          <span className="font-display text-2xl font-bold text-white tracking-tight">Kriti</span>
         </Link>
       </div>
 
