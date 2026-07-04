@@ -1,0 +1,70 @@
+const db = globalThis.__B44_DB__ || { auth:{ isAuthenticated: async()=>false, me: async()=>null }, entities:new Proxy({}, { get:()=>({ filter:async()=>[], get:async()=>null, create:async()=>({}), update:async()=>({}), delete:async()=>({}) }) }), integrations:{ Core:{ UploadFile:async()=>({ file_url:'' }) } } };
+
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
+import { Home, Search, MessageSquare, User, BookOpen, Brain, LogOut, Bell, Shield } from "lucide-react";
+
+import { useEffect, useState } from "react";
+
+const NAV_ITEMS = [
+  { icon: Home, label: "Feed", path: "/" },
+  { icon: Search, label: "Explorar", path: "/explore" },
+  { icon: BookOpen, label: "Fóruns", path: "/forums" },
+  { icon: Bell, label: "Notificações", path: "/notifications" },
+  { icon: User, label: "Perfil", path: "/profile" },
+];
+
+export default function Sidebar() {
+  const location = useLocation();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    db.auth.me().then(me => setIsAdmin(me.role === "admin")).catch(() => {});
+  }, []);
+
+  const navItems = [...NAV_ITEMS];
+  if (isAdmin) navItems.push({ icon: Shield, label: "Painel Admin", path: "/admin" });
+
+  return (
+    <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-40 max-lg:hidden">
+      <div className="p-6">
+        <Link to="/" className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shrink-0">
+            <Brain className="w-5 h-5 text-white" />
+          </div>
+          <img src="https://media.db.com/images/public/6a47f96b2cde0b9e4af52310/0033d1937_ChatGPTImage3dejulde202623_53_05.png" alt="Kriti" className="h-8 object-contain" />
+        </Link>
+      </div>
+
+      <nav className="flex-1 px-3 space-y-1">
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                isActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="p-3 border-t border-border">
+        <button
+          onClick={() => db.auth.logout("/")}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all w-full"
+        >
+          <LogOut className="w-5 h-5" />
+          Sair
+        </button>
+      </div>
+    </aside>
+  );
+}

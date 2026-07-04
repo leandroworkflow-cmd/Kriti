@@ -1,0 +1,61 @@
+{
+  "name": "Post",
+  "type": "object",
+  "properties": {
+    "author_id": {
+      "type": "string"
+    },
+    "author_name": {
+      "type": "string"
+    },
+    "author_username": {
+      "type": "string"
+    },
+    "author_avatar": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "likes_count": {
+      "type": "number",
+      "default": 0
+    },
+    "comments_count": {
+      "type": "number",
+      "default": 0
+    },
+    "reposts_count": {
+      "type": "number",
+      "default": 0
+    },
+    "is_repost": {
+      "type": "boolean",
+      "default": false
+    },
+    "original_post_id": {
+      "type": "string"
+    },
+    "original_author_name": {
+      "type": "string"
+    },
+    "forum_category": {
+      "type": "string",
+      "enum": [
+        "general",
+        "medicina",
+        "politica",
+        "tecnologia",
+        "arte",
+        "economia"
+      ]
+    }
+  },
+  "required": [
+    "author_id",
+    "content"
+  ]
+}
