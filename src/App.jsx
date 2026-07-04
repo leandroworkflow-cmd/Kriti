@@ -43,3 +43,64 @@ const AuthenticatedApp = () => {
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
+    }
+    return <Login />;
+  }
+
+  return (
+    <Routes>
+      {/* Rotas públicas de autenticação */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+
+      {/* Rotas que exigem usuário autenticado */}
+      <Route element={<ProtectedRoute unauthenticatedElement={<Login />} />}>
+        {/* Destinos do gateway: não passam pelo GatewayCheck, senão criaria loop */}
+        <Route path="/iq-test" element={<IQTest />} />
+        <Route path="/banned" element={<Banned />} />
+
+        {/* Rotas que exigem ter passado no teste de acesso (Kriti) */}
+        <Route element={<GatewayCheck><Outlet /></GatewayCheck>}>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/forums" element={<Forums />} />
+            <Route path="/forums/:category/new" element={<NewThread />} />
+            <Route path="/thread/:threadId" element={<ThreadDetail />} />
+            <Route path="/user/:userId" element={<UserProfilePage />} />
+            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+          </Route>
+        </Route>
+      </Route>
+
+      <Route path="*" element={<PageNotFound />} />
+    </Routes>
+  );
+};
+
+// Garante que apenas usuários com role "admin" acessem o painel administrativo
+const AdminRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <ScrollToTop />
+        <AuthenticatedApp />
+        <Toaster />
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;

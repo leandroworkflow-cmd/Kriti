@@ -1,5 +1,4 @@
-const db = globalThis.__B44_DB__ || { auth:{ isAuthenticated: async()=>false, me: async()=>null }, entities:new Proxy({}, { get:()=>({ filter:async()=>[], get:async()=>null, create:async()=>({}), update:async()=>({}), delete:async()=>({}) }) }), integrations:{ Core:{ UploadFile:async()=>({ file_url:'' }) } } };
-
+import { db } from "@/lib/db";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 
 import { Brain, Clock, CheckCircle, XCircle, Loader2, Zap, Shield } from "lucide-react";
@@ -10,10 +9,24 @@ import { motion, AnimatePresence } from "framer-motion";
 const TOTAL_QUESTIONS = 30;
 const TIME_PER_QUESTION = 12;
 const PASS_THRESHOLD = 18; // 60% to pass
+const MAX_ATTEMPTS = 2;
+
+// Retorna a chave do mês-calendário atual, ex: "2026-07"
+const getCurrentMonthKey = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+};
+
+// Quantos dias faltam até o dia 1 do próximo mês
+const getDaysUntilNextMonth = () => {
+  const now = new Date();
+  const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return Math.ceil((firstOfNextMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+};
 
 export default function IQTest() {
   const navigate = useNavigate();
-  const [phase, setPhase] = useState("intro"); // intro, loading, test, result
+  const [phase, setPhase] = useState("checking"); // checking, locked, intro, loading, test, result
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -21,8 +34,37 @@ export default function IQTest() {
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingBatch, setLoadingBatch] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [daysUntilRetry, setDaysUntilRetry] = useState(0);
   const timerRef = useRef(null);
   const questionStartRef = useRef(null);
+
+  // Ao carregar a página, verifica se o usuário já esgotou as tentativas do mês corrente
+  useEffect(() => {
+    const checkAttempts = async () => {
+      try {
+        const me = await db.auth.me();
+        const existing = await db.entities.UserProfile.filter({ user_id: me.id });
+        const currentProfile = existing[0] || null;
+        setProfile(currentProfile);
+
+        const currentMonthKey = getCurrentMonthKey();
+        if (currentProfile?.test_window_started_at === currentMonthKey) {
+          const attempts = currentProfile.test_attempts || 0;
+          if (attempts >= MAX_ATTEMPTS) {
+            setDaysUntilRetry(getDaysUntilNextMonth());
+            setPhase("locked");
+            return;
+          }
+        }
+        setPhase("intro");
+      } catch (e) {
+        console.error(e);
+        setPhase("intro");
+      }
+    };
+    checkAttempts();
+  }, []);
 
   const fetchQuestions = useCallback(async (batchIndex) => {
     const categories = ["lógica", "matemática", "padrões visuais", "raciocínio verbal", "sequências numéricas", "analogias", "interpretação"];
@@ -143,31 +185,77 @@ Timestamp de aleatoriedade: ${Date.now()}-${Math.random()}`,
     setPhase("result");
     const passed = finalScore >= PASS_THRESHOLD;
     const iqEstimate = Math.round(70 + (finalScore / TOTAL_QUESTIONS) * 80);
-    
+
     try {
       const me = await db.auth.me();
       const existing = await db.entities.UserProfile.filter({ user_id: me.id });
-      
-      if (existing.length > 0) {
-        await db.entities.UserProfile.update(existing[0].id, {
-          iq_score: iqEstimate,
-          test_passed: passed,
-          test_taken_at: new Date().toISOString()
-        });
+      const currentProfile = existing[0] || null;
+      const currentMonthKey = getCurrentMonthKey();
+
+      // Se ainda estamos no mesmo mês-calendário da última tentativa, soma; senão, reinicia a contagem
+      const sameMonth = currentProfile?.test_window_started_at === currentMonthKey;
+      const attempts = sameMonth ? (currentProfile.test_attempts || 0) + 1 : 1;
+
+      const payload = {
+        iq_score: iqEstimate,
+        test_passed: passed,
+        test_taken_at: new Date().toISOString(),
+        test_attempts: attempts,
+        test_window_started_at: currentMonthKey,
+      };
+
+      if (currentProfile) {
+        await db.entities.UserProfile.update(currentProfile.id, payload);
       } else {
         await db.entities.UserProfile.create({
           user_id: me.id,
           display_name: me.full_name || me.email.split("@")[0],
           username: me.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, ""),
-          iq_score: iqEstimate,
-          test_passed: passed,
-          test_taken_at: new Date().toISOString()
+          ...payload
         });
       }
+
+      setProfile({ ...currentProfile, ...payload });
     } catch (e) {
       console.error(e);
     }
   };
+
+  if (phase === "checking") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (phase === "locked") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-lg w-full bg-card rounded-2xl border border-border p-8 text-center"
+        >
+          <div className="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-6">
+            <Shield className="w-10 h-10 text-amber-400" />
+          </div>
+          <h2 className="text-2xl font-display font-bold mb-2">Limite de tentativas atingido</h2>
+          <p className="text-muted-foreground mb-6">
+            Você já usou suas {MAX_ATTEMPTS} tentativas deste mês. Novas tentativas liberam em{" "}
+            <strong>{daysUntilRetry} {daysUntilRetry === 1 ? "dia" : "dias"}</strong> (dia 1 do próximo mês).
+          </p>
+          <Button
+            onClick={() => db.auth.logout("/")}
+            variant="outline"
+            className="w-full h-12"
+          >
+            Sair
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (phase === "intro") {
     return (
@@ -234,6 +322,8 @@ Timestamp de aleatoriedade: ${Date.now()}-${Math.random()}`,
   if (phase === "result") {
     const passed = score >= PASS_THRESHOLD;
     const iqEstimate = Math.round(70 + (score / TOTAL_QUESTIONS) * 80);
+    const attemptsUsed = profile?.test_attempts || 0;
+    const attemptsLeft = Math.max(0, MAX_ATTEMPTS - attemptsUsed);
 
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -255,11 +345,18 @@ Timestamp de aleatoriedade: ${Date.now()}-${Math.random()}`,
           <h2 className="text-2xl font-display font-bold mb-2">
             {passed ? "Parabéns!" : "Não foi desta vez"}
           </h2>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-muted-foreground mb-2">
             {passed
               ? "Você demonstrou capacidade intelectual excepcional."
               : "Continue estudando e tente novamente."}
           </p>
+          {!passed && (
+            <p className="text-xs text-muted-foreground mb-4">
+              {attemptsLeft > 0
+                ? `Você ainda tem ${attemptsLeft} ${attemptsLeft === 1 ? "tentativa" : "tentativas"} neste mês.`
+                : `Você usou suas ${MAX_ATTEMPTS} tentativas deste mês.`}
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-secondary rounded-xl p-4">
@@ -279,7 +376,7 @@ Timestamp de aleatoriedade: ${Date.now()}-${Math.random()}`,
             >
               Entrar na Kriti
             </Button>
-          ) : (
+          ) : attemptsLeft > 0 ? (
             <Button
               onClick={() => {
                 setPhase("intro");
@@ -291,6 +388,14 @@ Timestamp de aleatoriedade: ${Date.now()}-${Math.random()}`,
               className="w-full h-12"
             >
               Tentar Novamente
+            </Button>
+          ) : (
+            <Button
+              onClick={() => db.auth.logout("/")}
+              variant="outline"
+              className="w-full h-12"
+            >
+              Sair
             </Button>
           )}
         </motion.div>

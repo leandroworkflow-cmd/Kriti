@@ -1,6 +1,3 @@
-
-const db = globalThis.__B44_DB__ || { auth:{ isAuthenticated: async()=>false, me: async()=>null }, entities:new Proxy({}, { get:()=>({ filter:async()=>[], get:async()=>null, create:async()=>({}), update:async()=>({}), delete:async()=>({}) }) }), integrations:{ Core:{ UploadFile:async()=>({ file_url:'' }) } } };
-
 # Base44 Project
 
 Use this repository to run and edit the app locally, then publish changes back through db.
@@ -78,6 +75,3 @@ Documentation: [https://docs.db.com/Integrations/Using-GitHub](https://docs.db.c
 Base44 CLI command reference: [https://docs.db.com/developers/references/cli/commands/introduction](https://docs.db.com/developers/references/cli/commands/introduction)
 
 Support: [https://app.db.com/support](https://app.db.com/support)
-
-# Kriti
- 4c45fd7e3a5fce9dd243937658f8cd5c91f0599a

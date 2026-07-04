@@ -28,6 +28,15 @@
       "type": "string",
       "format": "date-time"
     },
+    "test_attempts": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantidade de tentativas do teste de QI dentro do mês-calendário atual"
+    },
+    "test_window_started_at": {
+      "type": "string",
+      "description": "Chave do mês-calendário (formato AAAA-MM) referente às tentativas contadas em test_attempts"
+    },
     "banned": {
       "type": "boolean",
       "default": false

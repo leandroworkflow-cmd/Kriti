@@ -5,6 +5,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export default function AvatarCropper({ file, open, onClose, onCropped }) {
   const [imageSrc, setImageSrc] = useState(null);
+  const [naturalSize, setNaturalSize] = useState(null);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
@@ -18,9 +19,25 @@ export default function AvatarCropper({ file, open, onClose, onCropped }) {
     const reader = new FileReader();
     reader.onload = (e) => setImageSrc(e.target.result);
     reader.readAsDataURL(file);
+    setNaturalSize(null);
     setScale(1);
     setOffset({ x: 0, y: 0 });
   }, [file]);
+
+  // Escala base que faz a imagem SEMPRE cobrir o círculo (estilo "cover"),
+  // usando a menor dimensão da imagem para preencher o container.
+  const baseScale = naturalSize
+    ? containerSize / Math.min(naturalSize.w, naturalSize.h)
+    : 1;
+
+  const handleImageLoad = useCallback((e) => {
+    setNaturalSize({ w: e.target.naturalWidth, h: e.target.naturalHeight });
+  }, []);
+
+  useEffect(() => {
+    setOffset(prev => clampOffset(prev, scale));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale, naturalSize]);
 
   const handlePointerDown = useCallback((e) => {
     e.preventDefault();
@@ -31,20 +48,33 @@ export default function AvatarCropper({ file, open, onClose, onCropped }) {
     offsetStart.current = { ...offset };
   }, [offset]);
 
+  const clampOffset = useCallback((rawOffset, currentScale) => {
+    if (!naturalSize) return { x: 0, y: 0 };
+    const drawW = naturalSize.w * baseScale * currentScale;
+    const drawH = naturalSize.h * baseScale * currentScale;
+    const maxX = Math.max(0, (drawW - containerSize) / 2);
+    const maxY = Math.max(0, (drawH - containerSize) / 2);
+    return {
+      x: Math.min(maxX, Math.max(-maxX, rawOffset.x)),
+      y: Math.min(maxY, Math.max(-maxY, rawOffset.y)),
+    };
+  }, [naturalSize, baseScale]);
+
   const handlePointerMove = useCallback((e) => {
     if (!dragging) return;
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    setOffset({
+    const rawOffset = {
       x: offsetStart.current.x + (clientX - dragStart.current.x),
       y: offsetStart.current.y + (clientY - dragStart.current.y),
-    });
-  }, [dragging]);
+    };
+    setOffset(clampOffset(rawOffset, scale));
+  }, [dragging, clampOffset, scale]);
 
   const handlePointerUp = useCallback(() => setDragging(false), []);
 
   const handleCrop = () => {
-    if (!imgRef.current) return;
+    if (!imgRef.current || !naturalSize) return;
     const canvas = document.createElement("canvas");
     const outputSize = 400;
     canvas.width = outputSize;
@@ -52,25 +82,24 @@ export default function AvatarCropper({ file, open, onClose, onCropped }) {
     const ctx = canvas.getContext("2d");
 
     const img = imgRef.current;
-    const natW = img.naturalWidth;
-    const natH = img.naturalHeight;
+    const natW = naturalSize.w;
+    const natH = naturalSize.h;
 
-    const displayScale = containerSize / Math.max(natW, natH);
-    const drawW = natW * displayScale * scale;
-    const drawH = natH * displayScale * scale;
+    // Mesma base "cover" usada na pré-visualização
+    const drawW = natW * baseScale * scale;
+    const drawH = natH * baseScale * scale;
 
-    const ratioX = outputSize / containerSize;
-    const ratioY = outputSize / containerSize;
+    const ratio = outputSize / containerSize;
 
-    const drawX = ((containerSize - drawW) / 2 + offset.x) * ratioX;
-    const drawY = ((containerSize - drawH) / 2 + offset.y) * ratioY;
+    const drawX = ((containerSize - drawW) / 2 + offset.x) * ratio;
+    const drawY = ((containerSize - drawH) / 2 + offset.y) * ratio;
 
     ctx.beginPath();
     ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
     ctx.closePath();
     ctx.clip();
 
-    ctx.drawImage(img, drawX, drawY, drawW * ratioX, drawH * ratioY);
+    ctx.drawImage(img, drawX, drawY, drawW * ratio, drawH * ratio);
 
     canvas.toBlob((blob) => {
       if (blob) {
@@ -110,8 +139,13 @@ export default function AvatarCropper({ file, open, onClose, onCropped }) {
                 ref={imgRef}
                 src={imageSrc}
                 alt="crop"
+                onLoad={handleImageLoad}
                 className="max-w-none pointer-events-none"
-                style={{ width: containerSize, height: containerSize, objectFit: "contain" }}
+                style={
+                  naturalSize
+                    ? { width: naturalSize.w * baseScale, height: naturalSize.h * baseScale }
+                    : { width: containerSize, height: containerSize, opacity: 0 }
+                }
                 draggable={false}
               />
             </div>
@@ -120,12 +154,12 @@ export default function AvatarCropper({ file, open, onClose, onCropped }) {
         </div>
 
         <div className="flex items-center justify-center gap-4 px-6 py-3 border-t border-border">
-          <Button variant="ghost" size="icon" onClick={() => setScale(s => Math.max(0.5, s - 0.1))}>
+          <Button variant="ghost" size="icon" onClick={() => setScale(s => Math.max(1, s - 0.1))}>
             <ZoomOut className="w-4 h-4" />
           </Button>
           <input
             type="range"
-            min="0.5"
+            min="1"
             max="3"
             step="0.05"
             value={scale}

@@ -1,80 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App.jsx'
+import './index.css'
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700&display=swap');
-
-@layer base {
-  :root {
-    --background: 220 20% 4%;
-    --foreground: 210 20% 95%;
-    --card: 220 18% 7%;
-    --card-foreground: 210 20% 95%;
-    --popover: 220 18% 7%;
-    --popover-foreground: 210 20% 95%;
-    --primary: 262 80% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 16% 14%;
-    --secondary-foreground: 210 20% 85%;
-    --muted: 220 16% 12%;
-    --muted-foreground: 215 15% 55%;
-    --accent: 262 80% 60%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 16% 16%;
-    --input: 220 16% 16%;
-    --ring: 262 80% 60%;
-    --chart-1: 262 80% 60%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.75rem;
-    --font-heading: 'Playfair Display', serif;
-    --font-body: 'Inter', sans-serif;
-    --font-display: 'Playfair Display', serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --sidebar-background: 220 18% 5%;
-    --sidebar-foreground: 210 20% 85%;
-    --sidebar-primary: 262 80% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 16% 12%;
-    --sidebar-accent-foreground: 210 20% 95%;
-    --sidebar-border: 220 16% 14%;
-    --sidebar-ring: 262 80% 60%;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground font-body;
-  }
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: hsl(220, 18%, 5%);
-}
-::-webkit-scrollbar-thumb {
-  background: hsl(220, 16%, 20%);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(220, 16%, 30%);
-}
-
-/* IQ test timer animation */
-@keyframes countdown {
-  from { width: 100%; }
-  to { width: 0%; }
-}
-.timer-bar {
-  animation: countdown 12s linear forwards;
-}
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
