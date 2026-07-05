@@ -43,8 +43,12 @@ function CommentItem({ comment, onReply, replyingTo, replyText, setReplyText, su
   return (
     <div className={depth > 0 ? "ml-8 mt-2" : ""}>
       <div className="flex gap-2">
-        <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold shrink-0">
-          {comment.author_name?.[0]?.toUpperCase()}
+        <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold shrink-0 overflow-hidden">
+          {comment.author_avatar ? (
+            <img src={comment.author_avatar} alt={comment.author_name} className="w-full h-full object-cover" />
+          ) : (
+            comment.author_name?.[0]?.toUpperCase()
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
@@ -129,6 +133,7 @@ export default function PostCard({ post, currentUserId, onLike, onDelete, onComm
         author_id: me.id,
         author_name: p?.display_name || me.full_name,
         author_username: p?.username || "user",
+        author_avatar: p?.avatar_url || "",
         content: commentText.trim()
       });
       setComments(prev => [...prev, newComment]);
@@ -150,6 +155,7 @@ export default function PostCard({ post, currentUserId, onLike, onDelete, onComm
         author_id: me.id,
         author_name: p?.display_name || me.full_name,
         author_username: p?.username || "user",
+        author_avatar: p?.avatar_url || "",
         content: replyText.trim()
       });
       setComments(prev => [...prev, newReply]);
@@ -175,8 +181,12 @@ export default function PostCard({ post, currentUserId, onLike, onDelete, onComm
       )}
       <div className="flex gap-3">
         <Link to={`/user/${post.author_id}`}>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-            {post.author_name?.[0]?.toUpperCase() || "?"}
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
+            {post.author_avatar ? (
+              <img src={post.author_avatar} alt={post.author_name} className="w-full h-full object-cover" />
+            ) : (
+              post.author_name?.[0]?.toUpperCase() || "?"
+            )}
           </div>
         </Link>
         <div className="flex-1 min-w-0">
@@ -212,8 +222,12 @@ export default function PostCard({ post, currentUserId, onLike, onDelete, onComm
           {post.is_repost ? (
             <div className="mt-2 p-3 rounded-xl border border-border">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-[10px] shrink-0">
-                  {post.original_author_name?.[0]?.toUpperCase() || "?"}
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-[10px] shrink-0 overflow-hidden">
+                  {post.original_author_avatar ? (
+                    <img src={post.original_author_avatar} alt={post.original_author_name} className="w-full h-full object-cover" />
+                  ) : (
+                    post.original_author_name?.[0]?.toUpperCase() || "?"
+                  )}
                 </div>
                 <span className="text-xs font-semibold">{post.original_author_name}</span>
                 {post.original_author_username && (

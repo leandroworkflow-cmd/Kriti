@@ -102,6 +102,7 @@ create table if not exists user_profiles (
   username text not null unique,
   bio text,
   avatar_url text,
+  cover_url text,
   iq_score numeric,
   test_passed boolean not null default false,
   test_taken_at timestamptz,

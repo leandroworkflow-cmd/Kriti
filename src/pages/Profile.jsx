@@ -15,6 +15,7 @@ export default function Profile() {
   const [editBio, setEditBio] = useState("");
   const [editName, setEditName] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [cropFile, setCropFile] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
 
@@ -57,6 +58,20 @@ export default function Profile() {
     setUploadingPhoto(false);
   };
 
+  const handleCoverSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    if (!profile) return;
+    setUploadingCover(true);
+    try {
+      const { file_url } = await db.integrations.Core.UploadFile({ file });
+      await db.entities.UserProfile.update(profile.id, { cover_url: file_url });
+      setProfile(prev => ({ ...prev, cover_url: file_url }));
+    } catch (err) { console.error(err); }
+    setUploadingCover(false);
+  };
+
   const saveProfile = async () => {
     try {
       await db.entities.UserProfile.update(profile.id, {
@@ -84,7 +99,25 @@ export default function Profile() {
   return (
     <div>
       {/* Header */}
-      <div className="h-32 bg-gradient-to-r from-purple-600/30 to-indigo-600/30" />
+      <label className="relative h-32 block cursor-pointer group/cover overflow-hidden bg-gradient-to-r from-purple-600/30 to-indigo-600/30">
+        {profile?.cover_url && (
+          <img src={profile.cover_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        )}
+        <div className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/40 transition-colors flex items-center justify-center">
+          {uploadingCover ? (
+            <Loader2 className="w-6 h-6 text-white animate-spin" />
+          ) : (
+            <Camera className="w-6 h-6 text-white opacity-0 group-hover/cover:opacity-100 transition-opacity" />
+          )}
+        </div>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleCoverSelect}
+          disabled={uploadingCover}
+        />
+      </label>
       <div className="px-4 -mt-12">
         <div className="flex items-end justify-between">
           <div className="relative w-20 h-20 group">
