@@ -8,6 +8,17 @@
 create extension if not exists pgcrypto;
 
 -- ============================================================================
+-- GRANTS — permissões de acesso às tabelas (separadas das políticas de RLS!)
+-- O RLS controla QUAIS linhas um usuário pode ver; o GRANT controla se ele
+-- pode sequer consultar a tabela. Sem isso, toda consulta retorna 403.
+-- ============================================================================
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant select on all tables in schema public to anon;
+alter default privileges in schema public grant select, insert, update, delete on tables to authenticated;
+alter default privileges in schema public grant select on tables to anon;
+
+-- ============================================================================
 -- 1. PROFILES — dados de sistema ligados 1:1 ao auth.users (papel/role)
 -- ============================================================================
 create table if not exists profiles (
@@ -23,11 +34,37 @@ create policy "Qualquer usuário autenticado pode ver perfis (role)"
   to authenticated
   using (true);
 
--- Cria automaticamente uma linha em "profiles" sempre que alguém se cadastra
+-- Cria automaticamente uma linha em "profiles" e outra em "user_profiles"
+-- sempre que alguém se cadastra (login comum ou Google) — assim toda conta
+-- já nasce com um perfil completo, mesmo administradores que pulam o teste de QI.
 create or replace function handle_new_user()
 returns trigger as $$
+declare
+  base_username text;
+  final_username text;
+  suffix int := 0;
 begin
   insert into public.profiles (id, role) values (new.id, 'user');
+
+  base_username := lower(regexp_replace(split_part(new.email, '@', 1), '[^a-zA-Z0-9]', '', 'g'));
+  if base_username is null or base_username = '' then
+    base_username := 'usuario';
+  end if;
+  final_username := base_username;
+
+  -- Garante um username único, adicionando um número se já existir
+  while exists (select 1 from public.user_profiles where username = final_username) loop
+    suffix := suffix + 1;
+    final_username := base_username || suffix::text;
+  end loop;
+
+  insert into public.user_profiles (user_id, display_name, username)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    final_username
+  );
+
   return new;
 end;
 $$ language plpgsql security definer;
@@ -37,12 +74,15 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
 
--- Impede que o próprio usuário mude seu "role" via update comum
--- (promoção a admin só pode ser feita manualmente aqui no SQL Editor)
+-- Impede que o próprio usuário mude seu "role" via update feito pelo app
+-- (usando a chave anon/authenticated). Atualizações manuais pelo SQL Editor
+-- ou via service_role continuam funcionando normalmente.
 create or replace function prevent_role_self_update()
 returns trigger as $$
 begin
-  new.role = old.role;
+  if auth.role() = 'authenticated' then
+    new.role = old.role;
+  end if;
   return new;
 end;
 $$ language plpgsql security definer;
@@ -77,6 +117,7 @@ create table if not exists user_profiles (
 );
 
 create index if not exists idx_user_profiles_user_id on user_profiles(user_id);
+create unique index if not exists idx_user_profiles_user_id_unique on user_profiles(user_id);
 create index if not exists idx_user_profiles_username on user_profiles(username);
 
 alter table user_profiles enable row level security;
@@ -113,9 +154,14 @@ create table if not exists posts (
   likes_count numeric not null default 0,
   comments_count numeric not null default 0,
   reposts_count numeric not null default 0,
+  views_count numeric not null default 0,
   is_repost boolean not null default false,
-  original_post_id uuid,
+  original_post_id uuid references posts(id) on delete set null,
   original_author_name text,
+  original_author_username text,
+  original_author_avatar text,
+  original_content text,
+  original_image_url text,
   forum_category text check (forum_category in ('general','medicina','politica','tecnologia','arte','economia')),
   created_date timestamptz not null default now()
 );
@@ -164,11 +210,34 @@ create policy "Usuário remove seus próprios likes"
   on post_likes for delete to authenticated using (auth.uid() = user_id);
 
 -- ============================================================================
+-- 4.5 POST_BOOKMARKS (posts salvos)
+-- ============================================================================
+create table if not exists post_bookmarks (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references posts(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_date timestamptz not null default now(),
+  unique (post_id, user_id)
+);
+
+alter table post_bookmarks enable row level security;
+
+create policy "Usuário vê apenas seus próprios bookmarks"
+  on post_bookmarks for select to authenticated using (auth.uid() = user_id);
+
+create policy "Usuário cria seus próprios bookmarks"
+  on post_bookmarks for insert to authenticated with check (auth.uid() = user_id);
+
+create policy "Usuário remove seus próprios bookmarks"
+  on post_bookmarks for delete to authenticated using (auth.uid() = user_id);
+
+-- ============================================================================
 -- 5. COMMENTS
 -- ============================================================================
 create table if not exists comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references posts(id) on delete cascade,
+  parent_comment_id uuid references comments(id) on delete cascade,
   author_id uuid not null references auth.users(id) on delete cascade,
   author_name text,
   author_username text,
@@ -176,6 +245,8 @@ create table if not exists comments (
   content text not null,
   created_date timestamptz not null default now()
 );
+
+create index if not exists idx_comments_parent_comment_id on comments(parent_comment_id);
 
 create index if not exists idx_comments_post_id on comments(post_id);
 

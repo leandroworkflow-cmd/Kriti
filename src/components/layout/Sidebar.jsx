@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Search, MessageSquare, User, BookOpen, Brain, LogOut, Bell, Shield } from "lucide-react";
+import { Home, Search, MessageSquare, User, BookOpen, Brain, LogOut, Bell, Shield, Bookmark } from "lucide-react";
 
 import { useEffect, useState } from "react";
 
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { icon: Home, label: "Feed", path: "/" },
   { icon: Search, label: "Explorar", path: "/explore" },
   { icon: BookOpen, label: "Fóruns", path: "/forums" },
+  { icon: Bookmark, label: "Salvos", path: "/bookmarks" },
   { icon: Bell, label: "Notificações", path: "/notifications" },
   { icon: User, label: "Perfil", path: "/profile" },
 ];

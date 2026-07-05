@@ -18,6 +18,7 @@ import ResetPassword from '@/pages/ResetPassword';
 import Home from '@/pages/Home';
 import Explore from '@/pages/Explore';
 import Forums from '@/pages/Forums';
+import Bookmarks from '@/pages/Bookmarks';
 import NewThread from '@/pages/NewThread';
 import ThreadDetail from '@/pages/ThreadDetail';
 import Profile from '@/pages/Profile';
@@ -67,6 +68,7 @@ const AuthenticatedApp = () => {
             <Route path="/" element={<Home />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/forums" element={<Forums />} />
+            <Route path="/bookmarks" element={<Bookmarks />} />
             <Route path="/forums/:category/new" element={<NewThread />} />
             <Route path="/thread/:threadId" element={<ThreadDetail />} />
             <Route path="/user/:userId" element={<UserProfilePage />} />

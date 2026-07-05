@@ -12,6 +12,7 @@ export default function Home() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [likes, setLikes] = useState({});
+  const [bookmarks, setBookmarks] = useState({});
 
   const loadData = useCallback(async () => {
     try {
@@ -39,8 +40,13 @@ export default function Home() {
       const likeMap = {};
       myLikes.forEach(l => { likeMap[l.post_id] = l.id; });
       setLikes(likeMap);
-      
-      setPosts(allPosts.map(p => ({ ...p, _liked: !!likeMap[p.id] })));
+
+      const myBookmarks = await db.entities.PostBookmark.filter({ user_id: me.id });
+      const bookmarkMap = {};
+      myBookmarks.forEach(b => { bookmarkMap[b.post_id] = b.id; });
+      setBookmarks(bookmarkMap);
+
+      setPosts(allPosts.map(p => ({ ...p, _liked: !!likeMap[p.id], _bookmarked: !!bookmarkMap[p.id] })));
     } catch (e) { console.error(e); }
     setLoading(false);
   }, []);
@@ -73,6 +79,67 @@ export default function Home() {
     } catch (e) { console.error(e); }
   };
 
+  const handleBookmark = async (postId) => {
+    try {
+      const me = await db.auth.me();
+      if (bookmarks[postId]) {
+        await db.entities.PostBookmark.delete(bookmarks[postId]);
+        setBookmarks(prev => { const n = { ...prev }; delete n[postId]; return n; });
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, _bookmarked: false } : p));
+      } else {
+        const bookmark = await db.entities.PostBookmark.create({ post_id: postId, user_id: me.id });
+        setBookmarks(prev => ({ ...prev, [postId]: bookmark.id }));
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, _bookmarked: true } : p));
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const createRepost = async (originalPost, quoteContent = "") => {
+    try {
+      const me = await db.auth.me();
+      const profiles = await db.entities.UserProfile.filter({ user_id: me.id });
+      const p = profiles[0];
+
+      // Se o post original já é um repost, aponta pro post original de verdade
+      // (evita "repost de repost" aninhado)
+      const sourcePost = originalPost.is_repost
+        ? {
+            id: originalPost.original_post_id,
+            author_name: originalPost.original_author_name,
+            author_username: originalPost.original_author_username,
+            author_avatar: originalPost.original_author_avatar,
+            content: originalPost.original_content,
+            image_url: originalPost.original_image_url,
+          }
+        : originalPost;
+
+      await db.entities.Post.create({
+        author_id: me.id,
+        author_name: p?.display_name || me.full_name,
+        author_username: p?.username || "user",
+        author_avatar: p?.avatar_url || "",
+        content: quoteContent,
+        is_repost: true,
+        original_post_id: sourcePost.id,
+        original_author_name: sourcePost.author_name,
+        original_author_username: sourcePost.author_username,
+        original_author_avatar: sourcePost.author_avatar,
+        original_content: sourcePost.content,
+        original_image_url: sourcePost.image_url,
+        forum_category: "general",
+      });
+
+      await db.entities.Post.update(sourcePost.id, {
+        reposts_count: (originalPost.is_repost ? 0 : originalPost.reposts_count || 0) + 1
+      }).catch(() => {});
+
+      loadData();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleRepost = (post) => createRepost(post, "");
+  const handleQuote = (post, text) => createRepost(post, text);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -103,6 +170,9 @@ export default function Home() {
             onLike={handleLike}
             onDelete={handleDelete}
             onComment={loadData}
+            onBookmark={handleBookmark}
+            onRepost={handleRepost}
+            onQuote={handleQuote}
           />
         ))
       )}

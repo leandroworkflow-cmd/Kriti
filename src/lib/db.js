@@ -5,6 +5,7 @@ const TABLE_MAP = {
   UserProfile: "user_profiles",
   Post: "posts",
   PostLike: "post_likes",
+  PostBookmark: "post_bookmarks",
   Comment: "comments",
   Follow: "follows",
   ForumThread: "forum_threads",
