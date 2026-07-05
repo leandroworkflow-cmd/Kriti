@@ -26,6 +26,7 @@ export default function NewThread() {
         author_id: me.id,
         author_name: p?.display_name || me.full_name,
         author_username: p?.username || "user",
+        author_avatar: p?.avatar_url || "",
       });
       navigate("/forums");
     } catch (e) { console.error(e); }

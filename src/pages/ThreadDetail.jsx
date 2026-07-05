@@ -39,6 +39,7 @@ export default function ThreadDetail() {
         author_id: me.id,
         author_name: p?.display_name || me.full_name,
         author_username: p?.username || "user",
+        author_avatar: p?.avatar_url || "",
         content: replyText.trim()
       });
       setReplies(prev => [...prev, reply]);
@@ -71,8 +72,12 @@ export default function ThreadDetail() {
 
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2 mb-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
-            {thread.author_name?.[0]?.toUpperCase()}
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+            {thread.author_avatar ? (
+              <img src={thread.author_avatar} alt={thread.author_name} className="w-full h-full object-cover" />
+            ) : (
+              thread.author_name?.[0]?.toUpperCase()
+            )}
           </div>
           <div>
             <span className="text-sm font-semibold">{thread.author_name}</span>
@@ -88,8 +93,12 @@ export default function ThreadDetail() {
         {replies.map((r) => (
           <div key={r.id} className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold">
-                {r.author_name?.[0]?.toUpperCase()}
+              <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold overflow-hidden">
+                {r.author_avatar ? (
+                  <img src={r.author_avatar} alt={r.author_name} className="w-full h-full object-cover" />
+                ) : (
+                  r.author_name?.[0]?.toUpperCase()
+                )}
               </div>
               <span className="text-xs font-semibold">{r.author_name}</span>
               <span className="text-[10px] text-muted-foreground">{moment(r.created_date).fromNow()}</span>

@@ -63,8 +63,12 @@ export default function Explore() {
                   to={`/user/${u.user_id}`}
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary transition-colors"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                    {u.display_name?.[0]?.toUpperCase()}
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                    {u.avatar_url ? (
+                      <img src={u.avatar_url} alt={u.display_name} className="w-full h-full object-cover" />
+                    ) : (
+                      u.display_name?.[0]?.toUpperCase()
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{u.display_name}</p>

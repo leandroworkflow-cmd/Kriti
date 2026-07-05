@@ -61,8 +61,12 @@ export default function UserProfilePage() {
       <div className="h-32 bg-gradient-to-r from-purple-600/30 to-indigo-600/30" />
       <div className="px-4 -mt-12">
         <div className="flex items-end justify-between">
-          <div className="w-20 h-20 rounded-full border-4 border-background bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
-            {profile.display_name?.[0]?.toUpperCase()}
+          <div className="w-20 h-20 rounded-full border-4 border-background bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+            ) : (
+              profile.display_name?.[0]?.toUpperCase()
+            )}
           </div>
           {me?.id !== userId && (
             <Button onClick={toggleFollow} variant={isFollowing ? "outline" : "default"} size="sm" className="rounded-full">

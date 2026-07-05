@@ -42,8 +42,12 @@ export default function PostComposer({ profile, category = "general", onPosted }
   return (
     <div className="p-4 border-b border-border">
       <div className="flex gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-          {profile?.display_name?.[0]?.toUpperCase() || "?"}
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt={profile?.display_name} className="w-full h-full object-cover" />
+          ) : (
+            profile?.display_name?.[0]?.toUpperCase() || "?"
+          )}
         </div>
         <div className="flex-1">
           <textarea

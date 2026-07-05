@@ -204,8 +204,12 @@ export default function AdminPanel() {
                   p.banned ? "border-red-500/30 opacity-70" : "border-border"
                 }`}
               >
-                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold shrink-0">
-                  {p.display_name?.[0]?.toUpperCase()}
+                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">
+                  {p.avatar_url ? (
+                    <img src={p.avatar_url} alt={p.display_name} className="w-full h-full object-cover" />
+                  ) : (
+                    p.display_name?.[0]?.toUpperCase()
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
