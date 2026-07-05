@@ -121,6 +121,12 @@ export default function Login() {
           )}
         </Button>
       </form>
+
+      <p className="text-center text-[11px] text-muted-foreground mt-6">
+        <Link to="/termos" className="hover:underline">Termos de Uso</Link>
+        {" · "}
+        <Link to="/privacidade" className="hover:underline">Política de Privacidade</Link>
+      </p>
     </AuthLayout>
   );
 }

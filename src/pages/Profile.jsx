@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import React, { useState, useEffect } from "react";
 
-import { Loader2, Edit2, Brain, Calendar, Check, Camera } from "lucide-react";
+import { Loader2, Edit2, Brain, Calendar, Check, Camera, ShieldAlert, Trash2, X } from "lucide-react";
 import PostCard from "@/components/post/PostCard";
 import AvatarCropper from "@/components/profile/AvatarCropper";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ export default function Profile() {
   const [editName, setEditName] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [cropFile, setCropFile] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
 
@@ -86,6 +88,18 @@ export default function Profile() {
   const handleDelete = async (postId) => {
     await db.entities.Post.delete(postId);
     setPosts(prev => prev.filter(p => p.id !== postId));
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      await db.auth.deleteAccount();
+      window.location.href = "/login";
+    } catch (err) {
+      console.error(err);
+      setDeletingAccount(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   if (loading) {
@@ -217,6 +231,55 @@ export default function Profile() {
           />
         ))
       )}
+
+      {/* Configurações da conta / LGPD */}
+      <div className="p-4 border-t border-border mt-4">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-3">Configurações da conta</h3>
+
+        {!showDeleteConfirm ? (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-2 text-sm text-destructive hover:underline"
+          >
+            <Trash2 className="w-4 h-4" /> Excluir minha conta
+          </button>
+        ) : (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold">Isso é permanente</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sua conta, perfil, publicações, comentários e curtidas serão apagados
+                  definitivamente e não podem ser recuperados.
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteAccount}
+                    disabled={deletingAccount}
+                  >
+                    {deletingAccount ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Excluindo...</>
+                    ) : (
+                      "Sim, excluir permanentemente"
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={deletingAccount}
+                  >
+                    <X className="w-4 h-4 mr-1" /> Cancelar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

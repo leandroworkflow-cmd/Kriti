@@ -19,6 +19,8 @@ import Home from '@/pages/Home';
 import Explore from '@/pages/Explore';
 import Forums from '@/pages/Forums';
 import Bookmarks from '@/pages/Bookmarks';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import TermsOfUse from '@/pages/TermsOfUse';
 import NewThread from '@/pages/NewThread';
 import ThreadDetail from '@/pages/ThreadDetail';
 import Profile from '@/pages/Profile';
@@ -55,6 +57,8 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/privacidade" element={<PrivacyPolicy />} />
+      <Route path="/termos" element={<TermsOfUse />} />
 
       {/* Rotas que exigem usuário autenticado */}
       <Route element={<ProtectedRoute unauthenticatedElement={<Login />} />}>

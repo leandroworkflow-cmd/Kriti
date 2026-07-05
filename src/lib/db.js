@@ -159,6 +159,28 @@ const auth = {
     }
   },
 
+  // Exclui definitivamente a conta do usuário logado (LGPD, direito ao esquecimento)
+  async deleteAccount() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Não autenticado");
+
+    const res = await fetch("/api/delete-account", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody.error || "Falha ao excluir a conta");
+    }
+
+    await supabase.auth.signOut();
+    return res.json();
+  },
+
   redirectToLogin() {
     window.location.href = "/login";
   },

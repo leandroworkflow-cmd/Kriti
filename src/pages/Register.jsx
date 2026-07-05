@@ -19,10 +19,15 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    if (!agreedToTerms) {
+      setError("Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -68,6 +73,10 @@ export default function Register() {
   };
 
   const handleGoogle = () => {
+    if (!agreedToTerms) {
+      setError("Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.");
+      return;
+    }
     db.auth.loginWithProvider("google", "/");
   };
 
@@ -139,10 +148,32 @@ export default function Register() {
         </>
       }
     >
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          {error}
+        </div>
+      )}
+
+      <label className="flex items-start gap-2 mb-4 text-xs text-muted-foreground cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={agreedToTerms}
+          onChange={(e) => setAgreedToTerms(e.target.checked)}
+          className="mt-0.5 accent-primary"
+        />
+        <span>
+          Li e concordo com os{" "}
+          <Link to="/termos" target="_blank" className="text-primary hover:underline">Termos de Uso</Link>
+          {" "}e a{" "}
+          <Link to="/privacidade" target="_blank" className="text-primary hover:underline">Política de Privacidade</Link>.
+        </span>
+      </label>
+
       <Button
         variant="outline"
         className="w-full h-12 text-sm font-medium mb-6"
         onClick={handleGoogle}
+        disabled={!agreedToTerms}
       >
         <GoogleIcon className="w-5 h-5 mr-2" />
         Continue with Google
@@ -156,12 +187,6 @@ export default function Register() {
           <span className="bg-card px-3 text-muted-foreground">or</span>
         </div>
       </div>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-          {error}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
@@ -213,7 +238,7 @@ export default function Register() {
             />
           </div>
         </div>
-        <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
+        <Button type="submit" className="w-full h-12 font-medium" disabled={loading || !agreedToTerms}>
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
