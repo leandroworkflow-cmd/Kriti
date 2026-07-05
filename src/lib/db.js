@@ -197,3 +197,10 @@ const integrations = {
 };
 
 export const db = { auth, entities, integrations };
+
+// Chama uma função do Postgres criada no Supabase (ex: get_trending_posts)
+db.rpc = async (functionName, params = {}) => {
+  const { data, error } = await supabase.rpc(functionName, params);
+  if (error) throw error;
+  return data;
+};

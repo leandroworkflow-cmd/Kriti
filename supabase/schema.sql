@@ -383,7 +383,48 @@ create policy "Usuário autenticado pode atualizar seus arquivos"
   using (bucket_id = 'uploads');
 
 -- ============================================================================
--- 10. PARA SE TORNAR ADMIN (rode manualmente, trocando o e-mail):
+-- 11. RANKING "EM ALTA" — engajamento inteligente em vez de volume bruto
+-- Pesos: profundidade de conversa > diversidade de participantes > bookmarks
+-- > reposts > curtidas (o sinal mais fraco, de propósito).
+-- ============================================================================
+create or replace function get_trending_posts(days_back int default 3, max_results int default 50)
+returns setof posts
+language sql
+stable
+as $$
+  select p.*
+  from posts p
+  left join (
+    select
+      c.post_id,
+      count(distinct c.author_id) as unique_commenters,
+      count(*) filter (
+        where exists (select 1 from comments r where r.parent_comment_id = c.id)
+      ) as replied_comments
+    from comments c
+    group by c.post_id
+  ) cstats on cstats.post_id = p.id
+  left join (
+    select post_id, count(*) as bookmark_count
+    from post_bookmarks
+    group by post_id
+  ) bstats on bstats.post_id = p.id
+  where p.forum_category = 'general'
+    and p.created_date > now() - (days_back || ' days')::interval
+  order by (
+    coalesce(cstats.unique_commenters, 0) * 3
+    + coalesce(cstats.replied_comments, 0) * 5
+    + coalesce(bstats.bookmark_count, 0) * 4
+    + coalesce(p.reposts_count, 0) * 2
+    + coalesce(p.likes_count, 0) * 1
+  ) desc, p.created_date desc
+  limit max_results;
+$$;
+
+grant execute on function get_trending_posts(int, int) to authenticated;
+
+-- ============================================================================
+-- 12. PARA SE TORNAR ADMIN (rode manualmente, trocando o e-mail):
 -- ============================================================================
 -- update profiles set role = 'admin'
 -- where id = (select id from auth.users where email = 'seu-email@exemplo.com');

@@ -13,6 +13,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [likes, setLikes] = useState({});
   const [bookmarks, setBookmarks] = useState({});
+  const [feedMode, setFeedMode] = useState("recent"); // "recent" | "trending"
 
   const loadData = useCallback(async () => {
     try {
@@ -32,10 +33,10 @@ export default function Home() {
         setProfile(newProfile);
       }
 
-      const allPosts = await db.entities.Post.filter(
-        { forum_category: "general" }, "-created_date", 50
-      );
-      
+      const allPosts = feedMode === "trending"
+        ? await db.rpc("get_trending_posts", { days_back: 3, max_results: 50 })
+        : await db.entities.Post.filter({ forum_category: "general" }, "-created_date", 50);
+
       const myLikes = await db.entities.PostLike.filter({ user_id: me.id });
       const likeMap = {};
       myLikes.forEach(l => { likeMap[l.post_id] = l.id; });
@@ -49,9 +50,9 @@ export default function Home() {
       setPosts(allPosts.map(p => ({ ...p, _liked: !!likeMap[p.id], _bookmarked: !!bookmarkMap[p.id] })));
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, []);
+  }, [feedMode]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { setLoading(true); loadData(); }, [loadData]);
 
   const handleLike = async (postId) => {
     try {
@@ -151,15 +152,37 @@ export default function Home() {
   return (
     <div>
       <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
-        <h2 className="font-display text-xl font-bold">Feed</h2>
+        <h2 className="font-display text-xl font-bold mb-3">Feed</h2>
+        <div className="flex gap-1 bg-secondary rounded-full p-1 w-fit">
+          <button
+            onClick={() => setFeedMode("recent")}
+            className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              feedMode === "recent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Recentes
+          </button>
+          <button
+            onClick={() => setFeedMode("trending")}
+            className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              feedMode === "trending" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Em Alta
+          </button>
+        </div>
       </div>
 
       <PostComposer profile={profile} onPosted={loadData} />
 
       {posts.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
-          <p className="text-lg font-medium">Nenhuma publicação ainda</p>
-          <p className="text-sm mt-1">Seja o primeiro a compartilhar uma ideia!</p>
+          <p className="text-lg font-medium">
+            {feedMode === "trending" ? "Nada em alta nos últimos dias" : "Nenhuma publicação ainda"}
+          </p>
+          <p className="text-sm mt-1">
+            {feedMode === "trending" ? "Volte quando houver mais discussões acontecendo." : "Seja o primeiro a compartilhar uma ideia!"}
+          </p>
         </div>
       ) : (
         posts.map(post => (
