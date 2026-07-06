@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import React, { useState, useEffect } from "react";
 
-import { Loader2, Edit2, Brain, Calendar, Check, Camera, ShieldAlert, Trash2, X } from "lucide-react";
+import { Loader2, Edit2, Brain, Calendar, Check, Camera, ShieldAlert, Trash2, X, BadgeCheck } from "lucide-react";
 import PostCard from "@/components/post/PostCard";
 import AvatarCropper from "@/components/profile/AvatarCropper";
 import { Button } from "@/components/ui/button";
@@ -175,7 +175,12 @@ export default function Profile() {
               className="bg-secondary rounded-lg px-3 py-1.5 text-lg font-bold outline-none w-full"
             />
           ) : (
-            <h2 className="text-xl font-bold">{profile?.display_name}</h2>
+            <h2 className="text-xl font-bold flex items-center gap-1.5">
+              {profile?.display_name}
+              {profile?.verified && (
+                <BadgeCheck className="w-5 h-5 text-primary fill-primary/20 shrink-0" />
+              )}
+            </h2>
           )}
           <p className="text-sm text-muted-foreground">@{profile?.username}</p>
         </div>
@@ -225,7 +230,7 @@ export default function Profile() {
         posts.map(post => (
           <PostCard
             key={post.id}
-            post={post}
+            post={{ ...post, author_avatar: profile?.avatar_url || post.author_avatar }}
             currentUserId={profile?.user_id}
             onDelete={handleDelete}
           />

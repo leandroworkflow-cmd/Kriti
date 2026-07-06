@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import React, { useState, useEffect } from "react";
 
-import { Search, Loader2, Users } from "lucide-react";
+import { Search, Loader2, Users, BadgeCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function Explore() {
@@ -71,7 +71,10 @@ export default function Explore() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{u.display_name}</p>
+                    <p className="font-semibold text-sm truncate flex items-center gap-1">
+                      {u.display_name}
+                      {u.verified && <BadgeCheck className="w-3.5 h-3.5 text-primary fill-primary/20 shrink-0" />}
+                    </p>
                     <p className="text-xs text-muted-foreground">@{u.username}</p>
                   </div>
                   <div className="text-right">

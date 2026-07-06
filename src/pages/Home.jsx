@@ -188,7 +188,7 @@ export default function Home() {
         posts.map(post => (
           <PostCard
             key={post.id}
-            post={post}
+            post={post.author_id === profile?.user_id ? { ...post, author_avatar: profile?.avatar_url || post.author_avatar } : post}
             currentUserId={profile?.user_id}
             onLike={handleLike}
             onDelete={handleDelete}

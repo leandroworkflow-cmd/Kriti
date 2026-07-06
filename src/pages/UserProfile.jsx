@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import React, { useState, useEffect } from "react";
 
 import { useParams } from "react-router-dom";
-import { Loader2, Brain, Calendar, UserPlus, UserCheck } from "lucide-react";
+import { Loader2, Brain, Calendar, UserPlus, UserCheck, BadgeCheck } from "lucide-react";
 import PostCard from "@/components/post/PostCard";
 import { Button } from "@/components/ui/button";
 import moment from "moment";
@@ -75,7 +75,12 @@ export default function UserProfilePage() {
           )}
         </div>
         <div className="mt-3">
-          <h2 className="text-xl font-bold">{profile.display_name}</h2>
+          <h2 className="text-xl font-bold flex items-center gap-1.5">
+            {profile.display_name}
+            {profile.verified && (
+              <BadgeCheck className="w-5 h-5 text-primary fill-primary/20 shrink-0" />
+            )}
+          </h2>
           <p className="text-sm text-muted-foreground">@{profile.username}</p>
         </div>
         {profile.bio && <p className="text-sm mt-2">{profile.bio}</p>}

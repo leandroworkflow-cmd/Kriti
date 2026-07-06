@@ -103,6 +103,7 @@ create table if not exists user_profiles (
   bio text,
   avatar_url text,
   cover_url text,
+  verified boolean not null default false,
   iq_score numeric,
   test_passed boolean not null default false,
   test_taken_at timestamptz,
