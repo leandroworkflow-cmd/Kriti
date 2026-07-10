@@ -7,7 +7,7 @@ import { Loader2, Bookmark } from "lucide-react";
 export default function Bookmarks() {
   const [posts, setPosts] = useState([]);
   const [profile, setProfile] = useState(null);
-  const [likes, setLikes] = useState({});
+  const [reactions, setReactions] = useState({});
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -20,10 +20,13 @@ export default function Bookmarks() {
       const bookmarkMap = {};
       myBookmarks.forEach(b => { bookmarkMap[b.post_id] = b.id; });
 
-      const myLikes = await db.entities.PostLike.filter({ user_id: me.id });
-      const likeMap = {};
-      myLikes.forEach(l => { likeMap[l.post_id] = l.id; });
-      setLikes(likeMap);
+      const myReactions = await db.entities.PostReaction.filter({ user_id: me.id });
+      const reactionMap = {};
+      myReactions.forEach(r => {
+        if (!reactionMap[r.post_id]) reactionMap[r.post_id] = {};
+        reactionMap[r.post_id][r.reaction_type] = r.id;
+      });
+      setReactions(reactionMap);
 
       // Busca cada post salvo individualmente (mantendo a ordem de quando foi salvo)
       const savedPosts = await Promise.all(
@@ -33,7 +36,7 @@ export default function Bookmarks() {
       setPosts(
         savedPosts
           .filter(Boolean)
-          .map(p => ({ ...p, _liked: !!likeMap[p.id], _bookmarked: true }))
+          .map(p => ({ ...p, _myReactions: reactionMap[p.id] || {}, _bookmarked: true }))
       );
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -41,21 +44,35 @@ export default function Bookmarks() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleLike = async (postId) => {
+  // Coluna de contagem correspondente a cada tipo de reação
+  const REACTION_COUNT_COLUMN = {
+    pensou: "count_pensou",
+    aprendi: "count_aprendi",
+    fundamentado: "count_fundamentado",
+    original: "count_original",
+  };
+
+  const handleReact = async (postId, reactionType) => {
     try {
       const me = await db.auth.me();
-      if (likes[postId]) {
-        await db.entities.PostLike.delete(likes[postId]);
-        const post = posts.find(p => p.id === postId);
-        await db.entities.Post.update(postId, { likes_count: Math.max(0, (post.likes_count || 1) - 1) });
-        setLikes(prev => { const n = { ...prev }; delete n[postId]; return n; });
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: Math.max(0, (p.likes_count || 1) - 1), _liked: false } : p));
+      const countColumn = REACTION_COUNT_COLUMN[reactionType];
+      const post = posts.find(p => p.id === postId);
+      const existingId = reactions[postId]?.[reactionType];
+
+      if (existingId) {
+        await db.entities.PostReaction.delete(existingId);
+        await db.entities.Post.update(postId, { [countColumn]: Math.max(0, (post[countColumn] || 1) - 1) });
+        setReactions(prev => ({ ...prev, [postId]: { ...prev[postId], [reactionType]: undefined } }));
+        setPosts(prev => prev.map(p => p.id === postId
+          ? { ...p, [countColumn]: Math.max(0, (p[countColumn] || 1) - 1), _myReactions: { ...p._myReactions, [reactionType]: false } }
+          : p));
       } else {
-        const like = await db.entities.PostLike.create({ post_id: postId, user_id: me.id });
-        const post = posts.find(p => p.id === postId);
-        await db.entities.Post.update(postId, { likes_count: (post.likes_count || 0) + 1 });
-        setLikes(prev => ({ ...prev, [postId]: like.id }));
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: (p.likes_count || 0) + 1, _liked: true } : p));
+        const reaction = await db.entities.PostReaction.create({ post_id: postId, user_id: me.id, reaction_type: reactionType });
+        await db.entities.Post.update(postId, { [countColumn]: (post[countColumn] || 0) + 1 });
+        setReactions(prev => ({ ...prev, [postId]: { ...prev[postId], [reactionType]: reaction.id } }));
+        setPosts(prev => prev.map(p => p.id === postId
+          ? { ...p, [countColumn]: (p[countColumn] || 0) + 1, _myReactions: { ...p._myReactions, [reactionType]: true } }
+          : p));
       }
     } catch (e) { console.error(e); }
   };
@@ -104,7 +121,7 @@ export default function Bookmarks() {
             key={post.id}
             post={post}
             currentUserId={profile?.user_id}
-            onLike={handleLike}
+            onReact={handleReact}
             onDelete={handleDelete}
             onComment={loadData}
             onBookmark={handleBookmark}
