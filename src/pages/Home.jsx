@@ -11,7 +11,7 @@ export default function Home() {
   const [posts, setPosts] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [likes, setLikes] = useState({});
+  const [reactions, setReactions] = useState({});
   const [bookmarks, setBookmarks] = useState({});
   const [feedMode, setFeedMode] = useState("recent"); // "recent" | "trending"
 
@@ -37,38 +37,55 @@ export default function Home() {
         ? await db.rpc("get_trending_posts", { days_back: 3, max_results: 50 })
         : await db.entities.Post.filter({ forum_category: "general" }, "-created_date", 50);
 
-      const myLikes = await db.entities.PostLike.filter({ user_id: me.id });
-      const likeMap = {};
-      myLikes.forEach(l => { likeMap[l.post_id] = l.id; });
-      setLikes(likeMap);
+      const myReactions = await db.entities.PostReaction.filter({ user_id: me.id });
+      const reactionMap = {}; // { postId: { pensou: reactionId, aprendi: reactionId, ... } }
+      myReactions.forEach(r => {
+        if (!reactionMap[r.post_id]) reactionMap[r.post_id] = {};
+        reactionMap[r.post_id][r.reaction_type] = r.id;
+      });
+      setReactions(reactionMap);
 
       const myBookmarks = await db.entities.PostBookmark.filter({ user_id: me.id });
       const bookmarkMap = {};
       myBookmarks.forEach(b => { bookmarkMap[b.post_id] = b.id; });
       setBookmarks(bookmarkMap);
 
-      setPosts(allPosts.map(p => ({ ...p, _liked: !!likeMap[p.id], _bookmarked: !!bookmarkMap[p.id] })));
+      setPosts(allPosts.map(p => ({ ...p, _myReactions: reactionMap[p.id] || {}, _bookmarked: !!bookmarkMap[p.id] })));
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [feedMode]);
 
   useEffect(() => { setLoading(true); loadData(); }, [loadData]);
 
-  const handleLike = async (postId) => {
+  // Coluna de contagem correspondente a cada tipo de reação
+  const REACTION_COUNT_COLUMN = {
+    pensou: "count_pensou",
+    aprendi: "count_aprendi",
+    fundamentado: "count_fundamentado",
+    original: "count_original",
+  };
+
+  const handleReact = async (postId, reactionType) => {
     try {
       const me = await db.auth.me();
-      if (likes[postId]) {
-        await db.entities.PostLike.delete(likes[postId]);
-        const post = posts.find(p => p.id === postId);
-        await db.entities.Post.update(postId, { likes_count: Math.max(0, (post.likes_count || 1) - 1) });
-        setLikes(prev => { const n = { ...prev }; delete n[postId]; return n; });
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: Math.max(0, (p.likes_count || 1) - 1), _liked: false } : p));
+      const countColumn = REACTION_COUNT_COLUMN[reactionType];
+      const post = posts.find(p => p.id === postId);
+      const existingId = reactions[postId]?.[reactionType];
+
+      if (existingId) {
+        await db.entities.PostReaction.delete(existingId);
+        await db.entities.Post.update(postId, { [countColumn]: Math.max(0, (post[countColumn] || 1) - 1) });
+        setReactions(prev => ({ ...prev, [postId]: { ...prev[postId], [reactionType]: undefined } }));
+        setPosts(prev => prev.map(p => p.id === postId
+          ? { ...p, [countColumn]: Math.max(0, (p[countColumn] || 1) - 1), _myReactions: { ...p._myReactions, [reactionType]: false } }
+          : p));
       } else {
-        const like = await db.entities.PostLike.create({ post_id: postId, user_id: me.id });
-        const post = posts.find(p => p.id === postId);
-        await db.entities.Post.update(postId, { likes_count: (post.likes_count || 0) + 1 });
-        setLikes(prev => ({ ...prev, [postId]: like.id }));
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: (p.likes_count || 0) + 1, _liked: true } : p));
+        const reaction = await db.entities.PostReaction.create({ post_id: postId, user_id: me.id, reaction_type: reactionType });
+        await db.entities.Post.update(postId, { [countColumn]: (post[countColumn] || 0) + 1 });
+        setReactions(prev => ({ ...prev, [postId]: { ...prev[postId], [reactionType]: reaction.id } }));
+        setPosts(prev => prev.map(p => p.id === postId
+          ? { ...p, [countColumn]: (p[countColumn] || 0) + 1, _myReactions: { ...p._myReactions, [reactionType]: true } }
+          : p));
       }
     } catch (e) { console.error(e); }
   };
@@ -190,7 +207,7 @@ export default function Home() {
             key={post.id}
             post={post.author_id === profile?.user_id ? { ...post, author_avatar: profile?.avatar_url || post.author_avatar } : post}
             currentUserId={profile?.user_id}
-            onLike={handleLike}
+            onReact={handleReact}
             onDelete={handleDelete}
             onComment={loadData}
             onBookmark={handleBookmark}
