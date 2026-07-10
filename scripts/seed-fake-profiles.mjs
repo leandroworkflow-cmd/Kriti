@@ -165,6 +165,15 @@ async function run() {
       continue;
     }
 
+    // Marca automaticamente como conta de povoamento, pra nunca mais precisar
+    // filtrar isso na mão depois.
+    const { error: fakeFlagError } = await supabase
+      .from("contas_fake")
+      .upsert({ user_id: userId, motivo: "conta de povoamento (seed)" });
+    if (fakeFlagError) {
+      console.error(`  Erro ao marcar como conta fake: ${fakeFlagError.message}`);
+    }
+
     const { count: existingPostsCount } = await supabase
       .from("posts")
       .select("id", { count: "exact", head: true })
