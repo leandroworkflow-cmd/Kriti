@@ -215,6 +215,16 @@ Timestamp de aleatoriedade: ${Date.now()}-${Math.random()}`,
         });
       }
 
+      // Mantém o histórico de TODAS as tentativas (o user_profiles acima só guarda a última)
+      await db.entities.TentativaTeste.create({
+        user_id: me.id,
+        iq_score: iqEstimate,
+        acertos: finalScore,
+        total_perguntas: TOTAL_QUESTIONS,
+        passou: passed,
+        numero_tentativa: attempts,
+      });
+
       setProfile({ ...currentProfile, ...payload });
     } catch (e) {
       console.error(e);
