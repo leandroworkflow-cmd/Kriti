@@ -13,6 +13,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [reactions, setReactions] = useState({});
   const [bookmarks, setBookmarks] = useState({});
+  const [provocation, setProvocation] = useState(null);
   const [feedMode, setFeedMode] = useState("recent"); // "recent" | "trending"
 
   const loadData = useCallback(async () => {
@@ -50,7 +51,14 @@ export default function Home() {
       myBookmarks.forEach(b => { bookmarkMap[b.post_id] = b.id; });
       setBookmarks(bookmarkMap);
 
-      setPosts(allPosts.map(p => ({ ...p, _myReactions: reactionMap[p.id] || {}, _bookmarked: !!bookmarkMap[p.id] })));
+      const provocationPosts = await db.entities.Post.filter({ is_provocation: true }, "-created_date", 1);
+      const todaysProvocation = provocationPosts[0] || null;
+      setProvocation(todaysProvocation
+        ? { ...todaysProvocation, _myReactions: reactionMap[todaysProvocation.id] || {}, _bookmarked: !!bookmarkMap[todaysProvocation.id] }
+        : null);
+
+      const feedPosts = allPosts.filter(p => !p.is_provocation);
+      setPosts(feedPosts.map(p => ({ ...p, _myReactions: reactionMap[p.id] || {}, _bookmarked: !!bookmarkMap[p.id] })));
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [feedMode]);
@@ -69,23 +77,32 @@ export default function Home() {
     try {
       const me = await db.auth.me();
       const countColumn = REACTION_COUNT_COLUMN[reactionType];
-      const post = posts.find(p => p.id === postId);
+      const isProvocation = provocation?.id === postId;
+      const post = isProvocation ? provocation : posts.find(p => p.id === postId);
       const existingId = reactions[postId]?.[reactionType];
 
       if (existingId) {
         await db.entities.PostReaction.delete(existingId);
         await db.entities.Post.update(postId, { [countColumn]: Math.max(0, (post[countColumn] || 1) - 1) });
         setReactions(prev => ({ ...prev, [postId]: { ...prev[postId], [reactionType]: undefined } }));
-        setPosts(prev => prev.map(p => p.id === postId
-          ? { ...p, [countColumn]: Math.max(0, (p[countColumn] || 1) - 1), _myReactions: { ...p._myReactions, [reactionType]: false } }
-          : p));
+        if (isProvocation) {
+          setProvocation(prev => ({ ...prev, [countColumn]: Math.max(0, (prev[countColumn] || 1) - 1), _myReactions: { ...prev._myReactions, [reactionType]: false } }));
+        } else {
+          setPosts(prev => prev.map(p => p.id === postId
+            ? { ...p, [countColumn]: Math.max(0, (p[countColumn] || 1) - 1), _myReactions: { ...p._myReactions, [reactionType]: false } }
+            : p));
+        }
       } else {
         const reaction = await db.entities.PostReaction.create({ post_id: postId, user_id: me.id, reaction_type: reactionType });
         await db.entities.Post.update(postId, { [countColumn]: (post[countColumn] || 0) + 1 });
         setReactions(prev => ({ ...prev, [postId]: { ...prev[postId], [reactionType]: reaction.id } }));
-        setPosts(prev => prev.map(p => p.id === postId
-          ? { ...p, [countColumn]: (p[countColumn] || 0) + 1, _myReactions: { ...p._myReactions, [reactionType]: true } }
-          : p));
+        if (isProvocation) {
+          setProvocation(prev => ({ ...prev, [countColumn]: (prev[countColumn] || 0) + 1, _myReactions: { ...prev._myReactions, [reactionType]: true } }));
+        } else {
+          setPosts(prev => prev.map(p => p.id === postId
+            ? { ...p, [countColumn]: (p[countColumn] || 0) + 1, _myReactions: { ...p._myReactions, [reactionType]: true } }
+            : p));
+        }
       }
     } catch (e) { console.error(e); }
   };
@@ -191,6 +208,23 @@ export default function Home() {
       </div>
 
       <PostComposer profile={profile} onPosted={loadData} />
+
+      {provocation && (
+        <div className="border-2 border-purple-500/40 rounded-xl mx-4 mt-2 mb-1 overflow-hidden">
+          <div className="flex items-center gap-1.5 px-4 pt-3 text-xs font-semibold text-purple-400">
+            <span>⚡</span> Provocação do dia
+          </div>
+          <PostCard
+            post={provocation}
+            currentUserId={profile?.user_id}
+            onReact={handleReact}
+            onComment={loadData}
+            onBookmark={handleBookmark}
+            onRepost={handleRepost}
+            onQuote={handleQuote}
+          />
+        </div>
+      )}
 
       {posts.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
