@@ -429,3 +429,51 @@ grant execute on function get_trending_posts(int, int) to authenticated;
 -- ============================================================================
 -- update profiles set role = 'admin'
 -- where id = (select id from auth.users where email = 'seu-email@exemplo.com');
+
+-- ============================================================================
+-- TENTATIVAS_TESTE (histórico completo de tentativas do teste cognitivo)
+-- ============================================================================
+create table if not exists tentativas_teste (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  iq_score integer,
+  acertos integer,
+  total_perguntas integer default 30,
+  passou boolean not null,
+  numero_tentativa integer,
+  criado_em timestamptz not null default now()
+);
+
+create index if not exists idx_tentativas_teste_user_id on tentativas_teste(user_id);
+
+alter table tentativas_teste enable row level security;
+
+create policy "Usuário insere suas próprias tentativas"
+  on tentativas_teste for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+create policy "Admin vê todas as tentativas"
+  on tentativas_teste for select
+  to authenticated
+  using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
+-- ============================================================================
+-- CONTAS_FAKE (marca contas de povoamento/demonstração, para excluir de métricas)
+-- ============================================================================
+create table if not exists contas_fake (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  motivo text default 'conta de povoamento (seed)',
+  criado_em timestamptz not null default now()
+);
+
+alter table contas_fake enable row level security;
+
+create policy "Admin gerencia contas fake"
+  on contas_fake for all
+  to authenticated
+  using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
