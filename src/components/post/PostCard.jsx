@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import React, { useState, useEffect, useMemo } from "react";
 
-import { Heart, MessageCircle, Repeat2, Share, MoreHorizontal, Trash2, Bookmark, Eye, Quote } from "lucide-react";
+import { MessageCircle, Repeat2, Share, MoreHorizontal, Trash2, Bookmark, Eye, Quote, Facebook, Instagram, Link2 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 import { Link } from "react-router-dom";
 import moment from "moment";
 import {
@@ -94,7 +95,7 @@ function CommentItem({ comment, onReply, replyingTo, replyText, setReplyText, su
   );
 }
 
-export default function PostCard({ post, currentUserId, onLike, onDelete, onComment, onBookmark, onRepost, onQuote }) {
+export default function PostCard({ post, currentUserId, onReact, onDelete, onComment, onBookmark, onRepost, onQuote }) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [comments, setComments] = useState([]);
@@ -170,6 +171,43 @@ export default function PostCard({ post, currentUserId, onLike, onDelete, onComm
     onQuote?.(post, quoteText.trim());
     setQuoteText("");
     setShowQuoteBox(false);
+  };
+
+  const postUrl = `${window.location.origin}/post/${post.id}`;
+
+  const shareToFacebook = () => {
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`,
+      "_blank",
+      "width=600,height=500"
+    );
+  };
+
+  // O Instagram não tem uma API pública de compartilhamento por URL (diferente
+  // do Facebook). No celular, tentamos o menu nativo de compartilhar do
+  // sistema (que já inclui o Instagram entre as opções); no desktop, copiamos
+  // o link para o usuário colar manualmente.
+  const shareToInstagram = async () => {
+    const shareText = post.content ? `${post.content}\n\n${postUrl}` : postUrl;
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: shareText, url: postUrl });
+        return;
+      } catch (e) {
+        if (e?.name === "AbortError") return;
+      }
+    }
+    await navigator.clipboard.writeText(shareText);
+    toast({
+      title: "Link copiado",
+      description: "Abra o Instagram e cole no story ou na mensagem.",
+    });
+    window.open("https://www.instagram.com/", "_blank");
+  };
+
+  const copyLink = async () => {
+    await navigator.clipboard.writeText(postUrl);
+    toast({ title: "Link copiado", description: "O link do post foi copiado." });
   };
 
   return (
@@ -257,13 +295,44 @@ export default function PostCard({ post, currentUserId, onLike, onDelete, onComm
               {post.comments_count || 0}
             </button>
             <button
-              onClick={() => onLike?.(post.id)}
-              className={`flex items-center gap-1.5 transition-colors text-xs ${
-                post._liked ? "text-pink-500" : "text-muted-foreground hover:text-pink-500"
+              onClick={() => onReact?.(post.id, "pensou")}
+              title="Isso me fez pensar"
+              className={`flex items-center gap-1 transition-colors text-xs ${
+                post._myReactions?.pensou ? "text-indigo-400 font-semibold" : "text-muted-foreground hover:text-indigo-400"
               }`}
             >
-              <Heart className={`w-4 h-4 ${post._liked ? "fill-current" : ""}`} />
-              {post.likes_count || 0}
+              <span>🧠</span>
+              {post.count_pensou || 0}
+            </button>
+            <button
+              onClick={() => onReact?.(post.id, "aprendi")}
+              title="Aprendi algo novo"
+              className={`flex items-center gap-1 transition-colors text-xs ${
+                post._myReactions?.aprendi ? "text-emerald-400 font-semibold" : "text-muted-foreground hover:text-emerald-400"
+              }`}
+            >
+              <span>📚</span>
+              {post.count_aprendi || 0}
+            </button>
+            <button
+              onClick={() => onReact?.(post.id, "fundamentado")}
+              title="Bem fundamentado"
+              className={`flex items-center gap-1 transition-colors text-xs ${
+                post._myReactions?.fundamentado ? "text-orange-400 font-semibold" : "text-muted-foreground hover:text-orange-400"
+              }`}
+            >
+              <span>✔️</span>
+              {post.count_fundamentado || 0}
+            </button>
+            <button
+              onClick={() => onReact?.(post.id, "original")}
+              title="Ideia original"
+              className={`flex items-center gap-1 transition-colors text-xs ${
+                post._myReactions?.original ? "text-pink-400 font-semibold" : "text-muted-foreground hover:text-pink-400"
+              }`}
+            >
+              <span>💡</span>
+              {post.count_original || 0}
             </button>
 
             <DropdownMenu>
@@ -292,9 +361,24 @@ export default function PostCard({ post, currentUserId, onLike, onDelete, onComm
               <Bookmark className={`w-4 h-4 ${post._bookmarked ? "fill-current" : ""}`} />
             </button>
 
-            <button className="text-muted-foreground hover:text-primary transition-colors">
-              <Share className="w-4 h-4" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="text-muted-foreground hover:text-primary transition-colors">
+                  <Share className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={shareToFacebook}>
+                  <Facebook className="w-4 h-4 mr-2" /> Compartilhar no Facebook
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={shareToInstagram}>
+                  <Instagram className="w-4 h-4 mr-2" /> Compartilhar no Instagram
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={copyLink}>
+                  <Link2 className="w-4 h-4 mr-2" /> Copiar link
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <span className="flex items-center gap-1.5 text-muted-foreground text-xs ml-auto">
               <Eye className="w-3.5 h-3.5" />
