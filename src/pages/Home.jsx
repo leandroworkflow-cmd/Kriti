@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 
 import PostComposer from "@/components/post/PostComposer";
 import PostCard from "@/components/post/PostCard";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import moment from "moment";
 moment.locale("pt-br");
 
@@ -15,6 +15,7 @@ export default function Home() {
   const [bookmarks, setBookmarks] = useState({});
   const [provocation, setProvocation] = useState(null);
   const [feedMode, setFeedMode] = useState("recent"); // "recent" | "trending"
+  const [stats, setStats] = useState({ novasIdeias: 0, debatesAtivos: 0 });
 
   const loadData = useCallback(async () => {
     try {
@@ -36,14 +37,11 @@ export default function Home() {
 
       const allPosts = feedMode === "trending"
         ? await db.rpc("get_trending_posts", { days_back: 3, max_results: 50 })
-        : await db.entities.Post.filter({ forum_category: "general" }, "-created_date", 50);
+        : await db.entities.Post.list("-created_date", 50);
 
       const myReactions = await db.entities.PostReaction.filter({ user_id: me.id });
-      const reactionMap = {}; // { postId: { pensou: reactionId, aprendi: reactionId, ... } }
-      myReactions.forEach(r => {
-        if (!reactionMap[r.post_id]) reactionMap[r.post_id] = {};
-        reactionMap[r.post_id][r.reaction_type] = r.id;
-      });
+      const reactionMap = {};
+      myReactions.forEach(r => { reactionMap[r.post_id] = r; });
       setReactions(reactionMap);
 
       const myBookmarks = await db.entities.PostBookmark.filter({ user_id: me.id });
@@ -51,58 +49,67 @@ export default function Home() {
       myBookmarks.forEach(b => { bookmarkMap[b.post_id] = b.id; });
       setBookmarks(bookmarkMap);
 
+      // Provocação do dia: gerada por IA e guardada como um post especial (is_provocation)
       const provocationPosts = await db.entities.Post.filter({ is_provocation: true }, "-created_date", 1);
       const todaysProvocation = provocationPosts[0] || null;
       setProvocation(todaysProvocation
-        ? { ...todaysProvocation, _myReactions: reactionMap[todaysProvocation.id] || {}, _bookmarked: !!bookmarkMap[todaysProvocation.id] }
+        ? { ...todaysProvocation, _reaction: reactionMap[todaysProvocation.id]?.reaction_type || null, _bookmarked: !!bookmarkMap[todaysProvocation.id] }
         : null);
 
       const feedPosts = allPosts.filter(p => !p.is_provocation);
-      setPosts(feedPosts.map(p => ({ ...p, _myReactions: reactionMap[p.id] || {}, _bookmarked: !!bookmarkMap[p.id] })));
+      setPosts(feedPosts.map(p => ({
+        ...p,
+        _reaction: reactionMap[p.id]?.reaction_type || null,
+        _bookmarked: !!bookmarkMap[p.id],
+      })));
+
+      // Estatísticas simples do dia
+      const startOfDay = moment().startOf("day");
+      const novasIdeias = feedPosts.filter(p => moment(p.created_date).isSameOrAfter(startOfDay)).length;
+      const threads = await db.entities.ForumThread.list("-created_date", 100);
+      const debatesAtivos = threads.filter(t => moment(t.created_date).isAfter(moment().subtract(7, "days"))).length;
+      setStats({ novasIdeias, debatesAtivos });
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [feedMode]);
 
   useEffect(() => { setLoading(true); loadData(); }, [loadData]);
 
-  // Coluna de contagem correspondente a cada tipo de reação
-  const REACTION_COUNT_COLUMN = {
-    pensou: "count_pensou",
-    aprendi: "count_aprendi",
-    fundamentado: "count_fundamentado",
-    original: "count_original",
-  };
-
-  const handleReact = async (postId, reactionType) => {
+  const handleReact = async (postId, type) => {
     try {
       const me = await db.auth.me();
-      const countColumn = REACTION_COUNT_COLUMN[reactionType];
       const isProvocation = provocation?.id === postId;
       const post = isProvocation ? provocation : posts.find(p => p.id === postId);
-      const existingId = reactions[postId]?.[reactionType];
+      const existing = reactions[postId];
 
-      if (existingId) {
-        await db.entities.PostReaction.delete(existingId);
-        await db.entities.Post.update(postId, { [countColumn]: Math.max(0, (post[countColumn] || 1) - 1) });
-        setReactions(prev => ({ ...prev, [postId]: { ...prev[postId], [reactionType]: undefined } }));
-        if (isProvocation) {
-          setProvocation(prev => ({ ...prev, [countColumn]: Math.max(0, (prev[countColumn] || 1) - 1), _myReactions: { ...prev._myReactions, [reactionType]: false } }));
-        } else {
-          setPosts(prev => prev.map(p => p.id === postId
-            ? { ...p, [countColumn]: Math.max(0, (p[countColumn] || 1) - 1), _myReactions: { ...p._myReactions, [reactionType]: false } }
-            : p));
-        }
+      const applyLocal = (updater) => {
+        if (isProvocation) setProvocation(prev => updater(prev));
+        else setPosts(prev => prev.map(p => p.id === postId ? updater(p) : p));
+      };
+
+      if (existing && existing.reaction_type === type) {
+        await db.entities.PostReaction.delete(existing.id);
+        await db.entities.Post.update(postId, { [`${type}_count`]: Math.max(0, (post[`${type}_count`] || 1) - 1) });
+        setReactions(prev => { const n = { ...prev }; delete n[postId]; return n; });
+        applyLocal(p => ({ ...p, [`${type}_count`]: Math.max(0, (p[`${type}_count`] || 1) - 1), _reaction: null }));
+      } else if (existing) {
+        await db.entities.PostReaction.update(existing.id, { reaction_type: type });
+        await db.entities.Post.update(postId, {
+          [`${existing.reaction_type}_count`]: Math.max(0, (post[`${existing.reaction_type}_count`] || 1) - 1),
+          [`${type}_count`]: (post[`${type}_count`] || 0) + 1,
+        });
+        setReactions(prev => ({ ...prev, [postId]: { ...existing, reaction_type: type } }));
+        applyLocal(p => ({
+          ...p,
+          [`${existing.reaction_type}_count`]: Math.max(0, (p[`${existing.reaction_type}_count`] || 1) - 1),
+          [`${type}_count`]: (p[`${type}_count`] || 0) + 1,
+          _reaction: type,
+        }));
       } else {
-        const reaction = await db.entities.PostReaction.create({ post_id: postId, user_id: me.id, reaction_type: reactionType });
-        await db.entities.Post.update(postId, { [countColumn]: (post[countColumn] || 0) + 1 });
-        setReactions(prev => ({ ...prev, [postId]: { ...prev[postId], [reactionType]: reaction.id } }));
-        if (isProvocation) {
-          setProvocation(prev => ({ ...prev, [countColumn]: (prev[countColumn] || 0) + 1, _myReactions: { ...prev._myReactions, [reactionType]: true } }));
-        } else {
-          setPosts(prev => prev.map(p => p.id === postId
-            ? { ...p, [countColumn]: (p[countColumn] || 0) + 1, _myReactions: { ...p._myReactions, [reactionType]: true } }
-            : p));
-        }
+        const newReaction = await db.entities.PostReaction.create({ post_id: postId, user_id: me.id, reaction_type: type });
+        await db.entities.Post.update(postId, { [`${type}_count`]: (post[`${type}_count`] || 0) + 1 });
+        setReactions(prev => ({ ...prev, [postId]: newReaction }));
+        applyLocal(p => ({ ...p, [`${type}_count`]: (p[`${type}_count`] || 0) + 1, _reaction: type }));
       }
     } catch (e) { console.error(e); }
   };
@@ -117,14 +124,17 @@ export default function Home() {
   const handleBookmark = async (postId) => {
     try {
       const me = await db.auth.me();
+      const isProvocation = provocation?.id === postId;
       if (bookmarks[postId]) {
         await db.entities.PostBookmark.delete(bookmarks[postId]);
         setBookmarks(prev => { const n = { ...prev }; delete n[postId]; return n; });
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, _bookmarked: false } : p));
+        if (isProvocation) setProvocation(prev => ({ ...prev, _bookmarked: false }));
+        else setPosts(prev => prev.map(p => p.id === postId ? { ...p, _bookmarked: false } : p));
       } else {
         const bookmark = await db.entities.PostBookmark.create({ post_id: postId, user_id: me.id });
         setBookmarks(prev => ({ ...prev, [postId]: bookmark.id }));
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, _bookmarked: true } : p));
+        if (isProvocation) setProvocation(prev => ({ ...prev, _bookmarked: true }));
+        else setPosts(prev => prev.map(p => p.id === postId ? { ...p, _bookmarked: true } : p));
       }
     } catch (e) { console.error(e); }
   };
@@ -135,8 +145,6 @@ export default function Home() {
       const profiles = await db.entities.UserProfile.filter({ user_id: me.id });
       const p = profiles[0];
 
-      // Se o post original já é um repost, aponta pro post original de verdade
-      // (evita "repost de repost" aninhado)
       const sourcePost = originalPost.is_repost
         ? {
             id: originalPost.original_post_id,
@@ -185,8 +193,12 @@ export default function Home() {
 
   return (
     <div>
-      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
-        <h2 className="font-display text-xl font-bold mb-3">Feed</h2>
+      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-6 py-4">
+        <div className="flex items-center gap-6 text-xs text-muted-foreground mb-4">
+          <span><strong className="text-foreground">{stats.novasIdeias}</strong> novas ideias hoje</span>
+          <span><strong className="text-foreground">{stats.debatesAtivos}</strong> debates ativos</span>
+        </div>
+
         <div className="flex gap-1 bg-secondary rounded-full p-1 w-fit">
           <button
             onClick={() => setFeedMode("recent")}
@@ -210,15 +222,14 @@ export default function Home() {
       <PostComposer profile={profile} onPosted={loadData} />
 
       {provocation && (
-        <div className="border-2 border-purple-500/40 rounded-xl mx-4 mt-2 mb-1 overflow-hidden">
+        <div className="border-2 border-purple-500/40 rounded-2xl mx-6 mt-4 mb-2 overflow-hidden">
           <div className="flex items-center gap-1.5 px-4 pt-3 text-xs font-semibold text-purple-400">
-            <span>⚡</span> Provocação do dia
+            <Sparkles className="w-3.5 h-3.5" /> Provocação do dia
           </div>
           <PostCard
             post={provocation}
             currentUserId={profile?.user_id}
             onReact={handleReact}
-            onComment={loadData}
             onBookmark={handleBookmark}
             onRepost={handleRepost}
             onQuote={handleQuote}
@@ -243,7 +254,6 @@ export default function Home() {
             currentUserId={profile?.user_id}
             onReact={handleReact}
             onDelete={handleDelete}
-            onComment={loadData}
             onBookmark={handleBookmark}
             onRepost={handleRepost}
             onQuote={handleQuote}

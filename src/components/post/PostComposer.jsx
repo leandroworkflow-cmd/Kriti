@@ -3,9 +3,22 @@ import React, { useState } from "react";
 
 import { Image, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export default function PostComposer({ profile, category = "general", onPosted }) {
+const CATEGORIES = [
+  { value: "general", label: "Geral" },
+  { value: "tecnologia", label: "Tecnologia" },
+  { value: "medicina", label: "Medicina" },
+  { value: "politica", label: "Política" },
+  { value: "arte", label: "Arte & Cultura" },
+  { value: "economia", label: "Economia" },
+];
+
+export default function PostComposer({ profile, onPosted }) {
+  const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [category, setCategory] = useState("general");
   const [posting, setPosting] = useState(false);
   const [imageFile, setImageFile] = useState(null);
 
@@ -23,14 +36,19 @@ export default function PostComposer({ profile, category = "general", onPosted }
         author_name: profile.display_name,
         author_username: profile.username,
         author_avatar: profile.avatar_url || "",
+        title: title.trim() || null,
         content: content.trim(),
         image_url: imageUrl,
         forum_category: category,
-        likes_count: 0,
+        insight_count: 0,
+        discordo_count: 0,
+        aprendi_count: 0,
         comments_count: 0,
         reposts_count: 0,
       });
+      setTitle("");
       setContent("");
+      setCategory("general");
       setImageFile(null);
       onPosted?.();
     } catch (e) {
@@ -40,7 +58,7 @@ export default function PostComposer({ profile, category = "general", onPosted }
   };
 
   return (
-    <div className="p-4 border-b border-border">
+    <div className="p-6 border-b border-border">
       <div className="flex gap-3">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
           {profile?.avatar_url ? (
@@ -50,13 +68,20 @@ export default function PostComposer({ profile, category = "general", onPosted }
           )}
         </div>
         <div className="flex-1">
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Título (opcional)"
+            maxLength={120}
+            className="border-none bg-transparent px-0 text-base font-display font-semibold placeholder-muted-foreground focus-visible:ring-0"
+          />
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="O que está pensando?"
-            rows={3}
-            className="w-full bg-transparent text-foreground placeholder-muted-foreground resize-none border-none outline-none text-sm min-h-[80px] focus:outline-none"
-            maxLength={500}
+            placeholder="Compartilhe uma ideia que vale ser discutida."
+            rows={4}
+            className="w-full bg-transparent text-foreground placeholder-muted-foreground resize-none border-none outline-none text-[15px] leading-relaxed min-h-[100px] focus:outline-none mt-1"
+            maxLength={3000}
           />
           {imageFile && (
             <div className="mt-2 relative inline-block">
@@ -74,17 +99,29 @@ export default function PostComposer({ profile, category = "general", onPosted }
             </div>
           )}
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-            <label className="cursor-pointer text-muted-foreground hover:text-primary transition-colors">
-              <Image className="w-5 h-5" />
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => setImageFile(e.target.files[0])}
-              />
-            </label>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">{content.length}/500</span>
+              <label className="cursor-pointer text-muted-foreground hover:text-primary transition-colors">
+                <Image className="w-5 h-5" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setImageFile(e.target.files[0])}
+                />
+              </label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="h-8 w-[150px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">{content.length}/3000</span>
               <Button
                 onClick={handlePost}
                 disabled={!content.trim() || posting}

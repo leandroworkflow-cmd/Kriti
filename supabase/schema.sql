@@ -101,6 +101,7 @@ create table if not exists user_profiles (
   display_name text not null,
   username text not null unique,
   bio text,
+  interests text,
   avatar_url text,
   cover_url text,
   verified boolean not null default false,
@@ -151,9 +152,12 @@ create table if not exists posts (
   author_name text,
   author_username text,
   author_avatar text,
+  title text,
   content text not null,
   image_url text,
-  likes_count numeric not null default 0,
+  insight_count numeric not null default 0,
+  discordo_count numeric not null default 0,
+  aprendi_count numeric not null default 0,
   comments_count numeric not null default 0,
   reposts_count numeric not null default 0,
   views_count numeric not null default 0,
@@ -190,26 +194,32 @@ create policy "Usuário apaga seus próprios posts, ou admin apaga qualquer um"
   );
 
 -- ============================================================================
--- 4. POST_LIKES
+-- 4. POST_REACTIONS (substitui o "curtir" simples por reações qualificadas)
 -- ============================================================================
-create table if not exists post_likes (
+create table if not exists post_reactions (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references posts(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
+  reaction_type text not null check (reaction_type in ('insight', 'discordo', 'aprendi')),
   created_date timestamptz not null default now(),
   unique (post_id, user_id)
 );
 
-alter table post_likes enable row level security;
+alter table post_reactions enable row level security;
 
-create policy "Qualquer autenticado pode ver likes"
-  on post_likes for select to authenticated using (true);
+create policy "Qualquer autenticado pode ver reações"
+  on post_reactions for select to authenticated using (true);
 
-create policy "Usuário cria seus próprios likes"
-  on post_likes for insert to authenticated with check (auth.uid() = user_id);
+create policy "Usuário cria suas próprias reações"
+  on post_reactions for insert to authenticated with check (auth.uid() = user_id);
 
-create policy "Usuário remove seus próprios likes"
-  on post_likes for delete to authenticated using (auth.uid() = user_id);
+create policy "Usuário edita suas próprias reações"
+  on post_reactions for update to authenticated using (auth.uid() = user_id);
+
+create policy "Usuário remove suas próprias reações"
+  on post_reactions for delete to authenticated using (auth.uid() = user_id);
+
+grant select, insert, update, delete on post_reactions to authenticated;
 
 -- ============================================================================
 -- 4.5 POST_BOOKMARKS (posts salvos)
@@ -417,7 +427,7 @@ as $$
     + coalesce(cstats.replied_comments, 0) * 5
     + coalesce(bstats.bookmark_count, 0) * 4
     + coalesce(p.reposts_count, 0) * 2
-    + coalesce(p.likes_count, 0) * 1
+    + (coalesce(p.insight_count, 0) + coalesce(p.aprendi_count, 0) + coalesce(p.discordo_count, 0)) * 1
   ) desc, p.created_date desc
   limit max_results;
 $$;

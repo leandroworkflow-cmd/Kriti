@@ -22,10 +22,7 @@ export default function Bookmarks() {
 
       const myReactions = await db.entities.PostReaction.filter({ user_id: me.id });
       const reactionMap = {};
-      myReactions.forEach(r => {
-        if (!reactionMap[r.post_id]) reactionMap[r.post_id] = {};
-        reactionMap[r.post_id][r.reaction_type] = r.id;
-      });
+      myReactions.forEach(r => { reactionMap[r.post_id] = r; });
       setReactions(reactionMap);
 
       // Busca cada post salvo individualmente (mantendo a ordem de quando foi salvo)
@@ -36,7 +33,7 @@ export default function Bookmarks() {
       setPosts(
         savedPosts
           .filter(Boolean)
-          .map(p => ({ ...p, _myReactions: reactionMap[p.id] || {}, _bookmarked: true }))
+          .map(p => ({ ...p, _reaction: reactionMap[p.id]?.reaction_type || null, _bookmarked: true }))
       );
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -44,35 +41,35 @@ export default function Bookmarks() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Coluna de contagem correspondente a cada tipo de reação
-  const REACTION_COUNT_COLUMN = {
-    pensou: "count_pensou",
-    aprendi: "count_aprendi",
-    fundamentado: "count_fundamentado",
-    original: "count_original",
-  };
-
-  const handleReact = async (postId, reactionType) => {
+  const handleReact = async (postId, type) => {
     try {
       const me = await db.auth.me();
-      const countColumn = REACTION_COUNT_COLUMN[reactionType];
       const post = posts.find(p => p.id === postId);
-      const existingId = reactions[postId]?.[reactionType];
+      const existing = reactions[postId];
 
-      if (existingId) {
-        await db.entities.PostReaction.delete(existingId);
-        await db.entities.Post.update(postId, { [countColumn]: Math.max(0, (post[countColumn] || 1) - 1) });
-        setReactions(prev => ({ ...prev, [postId]: { ...prev[postId], [reactionType]: undefined } }));
-        setPosts(prev => prev.map(p => p.id === postId
-          ? { ...p, [countColumn]: Math.max(0, (p[countColumn] || 1) - 1), _myReactions: { ...p._myReactions, [reactionType]: false } }
-          : p));
+      if (existing && existing.reaction_type === type) {
+        await db.entities.PostReaction.delete(existing.id);
+        await db.entities.Post.update(postId, { [`${type}_count`]: Math.max(0, (post[`${type}_count`] || 1) - 1) });
+        setReactions(prev => { const n = { ...prev }; delete n[postId]; return n; });
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, [`${type}_count`]: Math.max(0, (p[`${type}_count`] || 1) - 1), _reaction: null } : p));
+      } else if (existing) {
+        await db.entities.PostReaction.update(existing.id, { reaction_type: type });
+        await db.entities.Post.update(postId, {
+          [`${existing.reaction_type}_count`]: Math.max(0, (post[`${existing.reaction_type}_count`] || 1) - 1),
+          [`${type}_count`]: (post[`${type}_count`] || 0) + 1,
+        });
+        setReactions(prev => ({ ...prev, [postId]: { ...existing, reaction_type: type } }));
+        setPosts(prev => prev.map(p => p.id === postId ? {
+          ...p,
+          [`${existing.reaction_type}_count`]: Math.max(0, (p[`${existing.reaction_type}_count`] || 1) - 1),
+          [`${type}_count`]: (p[`${type}_count`] || 0) + 1,
+          _reaction: type,
+        } : p));
       } else {
-        const reaction = await db.entities.PostReaction.create({ post_id: postId, user_id: me.id, reaction_type: reactionType });
-        await db.entities.Post.update(postId, { [countColumn]: (post[countColumn] || 0) + 1 });
-        setReactions(prev => ({ ...prev, [postId]: { ...prev[postId], [reactionType]: reaction.id } }));
-        setPosts(prev => prev.map(p => p.id === postId
-          ? { ...p, [countColumn]: (p[countColumn] || 0) + 1, _myReactions: { ...p._myReactions, [reactionType]: true } }
-          : p));
+        const newReaction = await db.entities.PostReaction.create({ post_id: postId, user_id: me.id, reaction_type: type });
+        await db.entities.Post.update(postId, { [`${type}_count`]: (post[`${type}_count`] || 0) + 1 });
+        setReactions(prev => ({ ...prev, [postId]: newReaction }));
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, [`${type}_count`]: (p[`${type}_count`] || 0) + 1, _reaction: type } : p));
       }
     } catch (e) { console.error(e); }
   };

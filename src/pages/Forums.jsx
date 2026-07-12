@@ -17,6 +17,37 @@ export default function Forums() {
   const [selected, setSelected] = useState(null);
   const [threads, setThreads] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [categoryStats, setCategoryStats] = useState({});
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const [allThreads, allReplies] = await Promise.all([
+          db.entities.ForumThread.list("-created_date", 500),
+          db.entities.ForumReply.list("-created_date", 500),
+        ]);
+
+        const stats = {};
+        for (const cat of CATEGORIES) {
+          const catThreads = allThreads.filter(t => t.category === cat.id);
+          const catReplies = allReplies.filter(r => catThreads.some(t => t.id === r.thread_id));
+          const participants = new Set([
+            ...catThreads.map(t => t.author_id),
+            ...catReplies.map(r => r.author_id),
+          ]);
+          stats[cat.id] = {
+            members: participants.size,
+            debates: catThreads.length,
+            lastThread: catThreads[0] || null,
+          };
+        }
+        setCategoryStats(stats);
+      } catch (e) { console.error(e); }
+      setLoadingStats(false);
+    };
+    loadStats();
+  }, []);
 
   useEffect(() => {
     if (!selected) return;
@@ -29,26 +60,42 @@ export default function Forums() {
   if (!selected) {
     return (
       <div>
-        <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
+        <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-6 py-4">
           <h2 className="font-display text-xl font-bold">Fóruns</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Espaços de crescimento intelectual</p>
         </div>
-        <div className="p-4 space-y-3">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelected(cat.id)}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all group"
-            >
-              <div className={`w-12 h-12 rounded-xl ${cat.bg} flex items-center justify-center`}>
-                <cat.icon className={`w-6 h-6 ${cat.color}`} />
-              </div>
-              <div className="text-left">
-                <h3 className="font-semibold group-hover:text-primary transition-colors">{cat.label}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Discussões e debates</p>
-              </div>
-            </button>
-          ))}
+        <div className="p-6 grid gap-4 sm:grid-cols-2">
+          {CATEGORIES.map((cat) => {
+            const stats = categoryStats[cat.id];
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelected(cat.id)}
+                className="text-left p-5 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all group"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-xl ${cat.bg} flex items-center justify-center shrink-0`}>
+                    <cat.icon className={`w-5 h-5 ${cat.color}`} />
+                  </div>
+                  <h3 className="font-display font-bold text-base group-hover:text-primary transition-colors">{cat.label}</h3>
+                </div>
+                {loadingStats ? (
+                  <div className="h-4 w-32 bg-secondary rounded animate-pulse" />
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      {stats?.members || 0} {stats?.members === 1 ? "participante" : "participantes"} · {stats?.debates || 0} {stats?.debates === 1 ? "debate ativo" : "debates ativos"}
+                    </p>
+                    {stats?.lastThread && (
+                      <p className="text-xs text-muted-foreground mt-2 truncate">
+                        Última discussão: <span className="text-foreground/80">"{stats.lastThread.title}"</span>
+                      </p>
+                    )}
+                  </>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
     );

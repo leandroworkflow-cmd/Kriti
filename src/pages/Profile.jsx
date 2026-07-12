@@ -14,12 +14,14 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [editBio, setEditBio] = useState("");
   const [editName, setEditName] = useState("");
+  const [editInterests, setEditInterests] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [cropFile, setCropFile] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
+  const [debatesCount, setDebatesCount] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -30,9 +32,16 @@ export default function Profile() {
           setProfile(profiles[0]);
           setEditBio(profiles[0].bio || "");
           setEditName(profiles[0].display_name || "");
+          setEditInterests(profiles[0].interests || "");
         }
         const userPosts = await db.entities.Post.filter({ author_id: me.id }, "-created_date", 30);
         setPosts(userPosts);
+
+        const [threads, replies] = await Promise.all([
+          db.entities.ForumThread.filter({ author_id: me.id }),
+          db.entities.ForumReply.filter({ author_id: me.id }),
+        ]);
+        setDebatesCount(threads.length + replies.length);
       } catch (e) { console.error(e); }
       setLoading(false);
     };
@@ -78,9 +87,10 @@ export default function Profile() {
     try {
       await db.entities.UserProfile.update(profile.id, {
         display_name: editName.trim(),
-        bio: editBio.trim()
+        bio: editBio.trim(),
+        interests: editInterests.trim(),
       });
-      setProfile(prev => ({ ...prev, display_name: editName.trim(), bio: editBio.trim() }));
+      setProfile(prev => ({ ...prev, display_name: editName.trim(), bio: editBio.trim(), interests: editInterests.trim() }));
       setEditing(false);
     } catch (e) { console.error(e); }
   };
@@ -186,15 +196,34 @@ export default function Profile() {
         </div>
 
         {editing ? (
-          <textarea
-            value={editBio}
-            onChange={(e) => setEditBio(e.target.value)}
-            placeholder="Escreva algo sobre você..."
-            className="mt-2 w-full bg-secondary rounded-lg px-3 py-2 text-sm outline-none resize-none"
-            rows={3}
-          />
+          <>
+            <textarea
+              value={editBio}
+              onChange={(e) => setEditBio(e.target.value)}
+              placeholder="Escreva algo sobre você..."
+              className="mt-2 w-full bg-secondary rounded-lg px-3 py-2 text-sm outline-none resize-none"
+              rows={3}
+            />
+            <input
+              value={editInterests}
+              onChange={(e) => setEditInterests(e.target.value)}
+              placeholder="Áreas de interesse, separadas por vírgula (ex: Tecnologia, Filosofia, IA)"
+              className="mt-2 w-full bg-secondary rounded-lg px-3 py-2 text-sm outline-none"
+            />
+          </>
         ) : (
-          profile?.bio && <p className="text-sm mt-2">{profile.bio}</p>
+          <>
+            {profile?.bio && <p className="text-sm mt-2">{profile.bio}</p>}
+            {profile?.interests && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {profile.interests.split(",").map(tag => tag.trim()).filter(Boolean).map((tag, i) => (
+                  <span key={i} className="text-xs font-medium px-2.5 py-1 rounded-full bg-secondary text-foreground/80">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
@@ -208,8 +237,9 @@ export default function Profile() {
           </span>
         </div>
 
-        <div className="flex gap-4 mt-3 text-sm pb-4 border-b border-border">
-          <span><strong>{profile?.following_count || 0}</strong> <span className="text-muted-foreground">seguindo</span></span>
+        <div className="flex gap-5 mt-3 text-sm pb-4 border-b border-border">
+          <span><strong>{posts.length}</strong> <span className="text-muted-foreground">Insights publicados</span></span>
+          <span><strong>{debatesCount}</strong> <span className="text-muted-foreground">Debates participados</span></span>
           <span><strong>{profile?.followers_count || 0}</strong> <span className="text-muted-foreground">seguidores</span></span>
         </div>
       </div>

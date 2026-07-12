@@ -4,7 +4,6 @@ import { supabase } from "@/lib/supabaseClient";
 const TABLE_MAP = {
   UserProfile: "user_profiles",
   Post: "posts",
-  PostLike: "post_likes",
   PostReaction: "post_reactions",
   PostBookmark: "post_bookmarks",
   Comment: "comments",
