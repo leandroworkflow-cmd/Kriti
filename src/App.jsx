@@ -26,7 +26,6 @@ import NewThread from '@/pages/NewThread';
 import ThreadDetail from '@/pages/ThreadDetail';
 import Profile from '@/pages/Profile';
 import UserProfilePage from '@/pages/UserProfile';
-import PostDetail from '@/pages/PostDetail';
 import Notifications from '@/pages/Notifications';
 import IQTest from '@/pages/IQTest';
 import GatewayCheck from '@/pages/GatewayCheck';
@@ -79,7 +78,6 @@ const AuthenticatedApp = () => {
             <Route path="/forums/:category/new" element={<NewThread />} />
             <Route path="/thread/:threadId" element={<ThreadDetail />} />
             <Route path="/user/:userId" element={<UserProfilePage />} />
-            <Route path="/post/:postId" element={<PostDetail />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
