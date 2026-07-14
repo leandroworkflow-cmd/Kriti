@@ -83,3 +83,11 @@
 .timer-bar {
   animation: countdown 12s linear forwards;
 }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

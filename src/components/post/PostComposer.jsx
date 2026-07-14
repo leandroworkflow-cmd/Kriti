@@ -31,7 +31,7 @@ export default function PostComposer({ profile, onPosted }) {
         const { file_url } = await db.integrations.Core.UploadFile({ file: imageFile });
         imageUrl = file_url;
       }
-      await db.entities.Post.create({
+      const newPost = await db.entities.Post.create({
         author_id: profile.user_id,
         author_name: profile.display_name,
         author_username: profile.username,
@@ -51,6 +51,28 @@ export default function PostComposer({ profile, onPosted }) {
       setCategory("general");
       setImageFile(null);
       onPosted?.();
+
+      // Avaliação por IA (Reputação do Insight) — roda em segundo plano,
+      // não trava a publicação. Se falhar, o post simplesmente fica sem nota.
+      fetch("/api/score-post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newPost.title, content: newPost.content }),
+      })
+        .then((r) => r.json())
+        .then((result) => {
+          if (result?.scored) {
+            db.entities.Post.update(newPost.id, {
+              clarity_score: result.clarity_score,
+              originality_score: result.originality_score,
+              sources_score: result.sources_score,
+              rigor_score: result.rigor_score,
+              impact_score: result.impact_score,
+              overall_score: result.overall_score,
+            }).catch(() => {});
+          }
+        })
+        .catch(() => {});
     } catch (e) {
       console.error(e);
     }

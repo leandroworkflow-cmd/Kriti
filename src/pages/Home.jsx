@@ -3,9 +3,19 @@ import React, { useState, useEffect, useCallback } from "react";
 
 import PostComposer from "@/components/post/PostComposer";
 import PostCard from "@/components/post/PostCard";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Lightbulb, MessageSquare, ChevronDown } from "lucide-react";
 import moment from "moment";
 moment.locale("pt-br");
+
+const CATEGORY_TABS = [
+  { id: "all", label: "Para você" },
+  { id: "following", label: "Seguindo" },
+  { id: "tecnologia", label: "Tecnologia" },
+  { id: "medicina", label: "Medicina" },
+  { id: "politica", label: "Política" },
+  { id: "arte", label: "Arte" },
+  { id: "economia", label: "Economia" },
+];
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
@@ -15,6 +25,8 @@ export default function Home() {
   const [bookmarks, setBookmarks] = useState({});
   const [provocation, setProvocation] = useState(null);
   const [feedMode, setFeedMode] = useState("recent"); // "recent" | "trending"
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [followingIds, setFollowingIds] = useState([]);
   const [stats, setStats] = useState({ novasIdeias: 0, debatesAtivos: 0 });
 
   const loadData = useCallback(async () => {
@@ -48,6 +60,9 @@ export default function Home() {
       const bookmarkMap = {};
       myBookmarks.forEach(b => { bookmarkMap[b.post_id] = b.id; });
       setBookmarks(bookmarkMap);
+
+      const myFollows = await db.entities.Follow.filter({ follower_id: me.id });
+      setFollowingIds(myFollows.map(f => f.following_id));
 
       // Provocação do dia: gerada por IA e guardada como um post especial (is_provocation)
       const provocationPosts = await db.entities.Post.filter({ is_provocation: true }, "-created_date", 1);
@@ -183,6 +198,12 @@ export default function Home() {
   const handleRepost = (post) => createRepost(post, "");
   const handleQuote = (post, text) => createRepost(post, text);
 
+  const visiblePosts = posts.filter(p => {
+    if (categoryFilter === "all") return true;
+    if (categoryFilter === "following") return followingIds.includes(p.author_id);
+    return p.forum_category === categoryFilter;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -194,9 +215,38 @@ export default function Home() {
   return (
     <div>
       <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-6 py-4">
-        <div className="flex items-center gap-6 text-xs text-muted-foreground mb-4">
-          <span><strong className="text-foreground">{stats.novasIdeias}</strong> novas ideias hoje</span>
-          <span><strong className="text-foreground">{stats.debatesAtivos}</strong> debates ativos</span>
+        <p className="text-xs font-semibold text-muted-foreground mb-2">Hoje no Kriti</p>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2">
+            <Lightbulb className="w-4 h-4 text-primary shrink-0" />
+            <div>
+              <p className="text-sm font-bold leading-none">{stats.novasIdeias}</p>
+              <p className="text-[11px] text-muted-foreground">novas ideias hoje</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2">
+            <MessageSquare className="w-4 h-4 text-primary shrink-0" />
+            <div>
+              <p className="text-sm font-bold leading-none">{stats.debatesAtivos}</p>
+              <p className="text-[11px] text-muted-foreground">debates ativos</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 mb-3 overflow-x-auto no-scrollbar">
+          {CATEGORY_TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setCategoryFilter(tab.id)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                categoryFilter === tab.id
+                  ? "bg-primary text-primary-foreground border-transparent"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <div className="flex gap-1 bg-secondary rounded-full p-1 w-fit">
@@ -237,17 +287,17 @@ export default function Home() {
         </div>
       )}
 
-      {posts.length === 0 ? (
+      {visiblePosts.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-lg font-medium">
-            {feedMode === "trending" ? "Nada em alta nos últimos dias" : "Nenhuma publicação ainda"}
+            {categoryFilter === "following" ? "Ninguém que você segue publicou ainda" : feedMode === "trending" ? "Nada em alta nos últimos dias" : "Nenhuma publicação ainda"}
           </p>
           <p className="text-sm mt-1">
-            {feedMode === "trending" ? "Volte quando houver mais discussões acontecendo." : "Seja o primeiro a compartilhar uma ideia!"}
+            {categoryFilter === "following" ? "Siga outras pessoas pra ver o conteúdo delas aqui." : feedMode === "trending" ? "Volte quando houver mais discussões acontecendo." : "Seja o primeiro a compartilhar uma ideia!"}
           </p>
         </div>
       ) : (
-        posts.map(post => (
+        visiblePosts.map(post => (
           <PostCard
             key={post.id}
             post={post.author_id === profile?.user_id ? { ...post, author_avatar: profile?.avatar_url || post.author_avatar } : post}

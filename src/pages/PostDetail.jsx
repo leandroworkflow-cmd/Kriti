@@ -235,7 +235,8 @@ export default function PostDetail() {
         </button>
       </div>
 
-      <div className="px-6 py-8 max-w-2xl mx-auto">
+      <div className="px-6 py-8 max-w-4xl mx-auto grid md:grid-cols-[1fr_240px] gap-8">
+      <div>
         {categoryLabel && (
           <span className="text-xs font-bold tracking-wide uppercase text-primary bg-primary/10 px-2.5 py-1 rounded-full">
             {categoryLabel}
@@ -319,6 +320,46 @@ export default function PostDetail() {
           ))}
         </div>
       </div>
+
+      {/* Reputação do Insight — só aparece quando a IA já avaliou o post de verdade */}
+      {post.overall_score != null ? (
+        <div className="h-fit md:sticky md:top-20 rounded-2xl border border-border p-5">
+          <h4 className="text-sm font-bold mb-4">Reputação do Insight</h4>
+          <div className="space-y-3">
+            {[
+              { label: "Clareza", value: post.clarity_score },
+              { label: "Originalidade", value: post.originality_score },
+              { label: "Fontes", value: post.sources_score },
+              { label: "Rigor", value: post.rigor_score },
+              { label: "Impacto", value: post.impact_score },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="font-semibold">{value?.toFixed(1)}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full bg-primary rounded-full" style={{ width: `${(value || 0) * 10}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 pt-4 border-t border-border flex items-center justify-between">
+            <span className="text-sm font-medium">Pontuação Geral</span>
+            <span className="w-11 h-11 rounded-full border-2 border-primary flex items-center justify-center text-sm font-bold">
+              {post.overall_score?.toFixed(1)}
+            </span>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed">
+            Avaliação gerada por IA com base no conteúdo do texto.
+          </p>
+        </div>
+      ) : (
+        <div className="h-fit md:sticky md:top-20 rounded-2xl border border-dashed border-border p-5 text-center">
+          <p className="text-xs text-muted-foreground">Este post ainda não recebeu avaliação de reputação.</p>
+        </div>
+      )}
+    </div>
     </div>
   );
 }

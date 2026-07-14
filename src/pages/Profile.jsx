@@ -1,11 +1,20 @@
 import { db } from "@/lib/db";
 import React, { useState, useEffect } from "react";
 
-import { Loader2, Edit2, Brain, Calendar, Check, Camera, ShieldAlert, Trash2, X, BadgeCheck } from "lucide-react";
+import { Loader2, Edit2, Brain, Calendar, Check, Camera, ShieldAlert, Trash2, X, BadgeCheck, Trophy, Flame, MessagesSquare, Heart, Repeat2 } from "lucide-react";
 import PostCard from "@/components/post/PostCard";
 import AvatarCropper from "@/components/profile/AvatarCropper";
 import { Button } from "@/components/ui/button";
 import moment from "moment";
+
+const ACHIEVEMENTS = [
+  { id: "primeira_ideia", label: "Primeira Ideia", Icon: Flame, check: ({ posts }) => posts.length >= 1 },
+  { id: "voz_ativa", label: "Voz Ativa (10+ posts)", Icon: Trophy, check: ({ posts }) => posts.length >= 10 },
+  { id: "debatedor", label: "Debatedor (5+ participações em fóruns)", Icon: MessagesSquare, check: ({ debatesCount }) => debatesCount >= 5 },
+  { id: "bem_recebido", label: "Bem Recebido (10+ reações recebidas)", Icon: Heart, check: ({ reputationScore }) => reputationScore >= 10 },
+  { id: "influente", label: "Influente (posts repostados)", Icon: Repeat2, check: ({ posts }) => posts.some(p => (p.reposts_count || 0) > 0) },
+  { id: "qi_elevado", label: "QI Elevado (130+)", Icon: Brain, check: ({ iqScore }) => iqScore >= 130 },
+];
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
@@ -22,6 +31,11 @@ export default function Profile() {
   const [cropFile, setCropFile] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
   const [debatesCount, setDebatesCount] = useState(0);
+
+  // Reputação intelectual: soma real das reações e reposts recebidos nos posts
+  const reputationScore = posts.reduce((sum, p) =>
+    sum + (p.insight_count || 0) * 2 + (p.aprendi_count || 0) * 2 + (p.discordo_count || 0) + (p.reposts_count || 0) * 3
+  , 0);
 
   useEffect(() => {
     const load = async () => {
@@ -237,10 +251,30 @@ export default function Profile() {
           </span>
         </div>
 
-        <div className="flex gap-5 mt-3 text-sm pb-4 border-b border-border">
+        <div className="flex gap-5 mt-3 text-sm pb-4 border-b border-border flex-wrap">
           <span><strong>{posts.length}</strong> <span className="text-muted-foreground">Insights publicados</span></span>
+          <span><strong>{posts.filter(p => p.title).length}</strong> <span className="text-muted-foreground">Artigos escritos</span></span>
           <span><strong>{debatesCount}</strong> <span className="text-muted-foreground">Debates participados</span></span>
-          <span><strong>{profile?.followers_count || 0}</strong> <span className="text-muted-foreground">seguidores</span></span>
+          <span><strong>{reputationScore}</strong> <span className="text-muted-foreground">Reputação intelectual</span></span>
+        </div>
+
+        {/* Conquistas: só acende quando o marco real foi atingido */}
+        <div className="flex gap-2 py-4 border-b border-border">
+          {ACHIEVEMENTS.map((ach) => {
+            const unlocked = ach.check({ posts, debatesCount, reputationScore, iqScore: profile?.iq_score || 0 });
+            return (
+              <div key={ach.id} className="group relative">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                  unlocked ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground/30"
+                }`}>
+                  <ach.Icon className="w-5 h-5" />
+                </div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block bg-popover border border-border text-xs px-2 py-1 rounded-lg whitespace-nowrap z-10">
+                  {ach.label}{!unlocked && " (bloqueada)"}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
