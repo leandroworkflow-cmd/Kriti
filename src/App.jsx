@@ -20,6 +20,8 @@ import Explore from '@/pages/Explore';
 import Forums from '@/pages/Forums';
 import Bookmarks from '@/pages/Bookmarks';
 import PostDetail from '@/pages/PostDetail';
+import Labs from '@/pages/Labs';
+import ProjectDetail from '@/pages/ProjectDetail';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import TermsOfUse from '@/pages/TermsOfUse';
 import NewThread from '@/pages/NewThread';
@@ -75,6 +77,8 @@ const AuthenticatedApp = () => {
             <Route path="/forums" element={<Forums />} />
             <Route path="/bookmarks" element={<Bookmarks />} />
             <Route path="/post/:postId" element={<PostDetail />} />
+            <Route path="/labs" element={<Labs />} />
+            <Route path="/labs/:projectId" element={<ProjectDetail />} />
             <Route path="/forums/:category/new" element={<NewThread />} />
             <Route path="/thread/:threadId" element={<ThreadDetail />} />
             <Route path="/user/:userId" element={<UserProfilePage />} />

@@ -441,6 +441,67 @@ $$;
 grant execute on function get_trending_posts(int, int) to authenticated;
 
 -- ============================================================================
+-- 13. KRITI LABS — Fase 1: cadastro de projetos e interesse
+-- ============================================================================
+create table if not exists projects (
+  id uuid primary key default gen_random_uuid(),
+  creator_id uuid not null references auth.users(id) on delete cascade,
+  creator_name text,
+  creator_username text,
+  creator_avatar text,
+  name text not null,
+  area text,
+  stage text check (stage in ('ideia','prototipo','mvp','tracao','serie_a')),
+  description text not null,
+  seeking text, -- papéis buscados, separados por vírgula (ex: "Investidor, Co-Founder")
+  interested_count numeric not null default 0,
+  created_date timestamptz not null default now()
+);
+
+create index if not exists idx_projects_created_date on projects(created_date desc);
+
+alter table projects enable row level security;
+
+create policy "Qualquer autenticado pode ver projetos"
+  on projects for select to authenticated using (true);
+
+create policy "Usuário cria seus próprios projetos"
+  on projects for insert to authenticated with check (auth.uid() = creator_id);
+
+create policy "Usuário edita seus próprios projetos"
+  on projects for update to authenticated using (auth.uid() = creator_id);
+
+create policy "Usuário apaga seus próprios projetos, ou admin apaga qualquer um"
+  on projects for delete to authenticated
+  using (
+    auth.uid() = creator_id
+    or exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
+grant select, insert, update, delete on projects to authenticated;
+
+create table if not exists project_interests (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references projects(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_date timestamptz not null default now(),
+  unique (project_id, user_id)
+);
+
+alter table project_interests enable row level security;
+
+create policy "Qualquer autenticado pode ver interesses"
+  on project_interests for select to authenticated using (true);
+
+create policy "Usuário registra seu próprio interesse"
+  on project_interests for insert to authenticated with check (auth.uid() = user_id);
+
+create policy "Usuário remove seu próprio interesse"
+  on project_interests for delete to authenticated using (auth.uid() = user_id);
+
+grant select, insert, delete on project_interests to authenticated;
+
+-- ============================================================================
 -- 12. PARA SE TORNAR ADMIN (rode manualmente, trocando o e-mail):
 -- ============================================================================
 -- update profiles set role = 'admin'

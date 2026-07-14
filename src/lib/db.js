@@ -11,6 +11,8 @@ const TABLE_MAP = {
   ForumThread: "forum_threads",
   ForumReply: "forum_replies",
   TentativaTeste: "tentativas_teste",
+  Project: "projects",
+  ProjectInterest: "project_interests",
 };
 
 // Aplica um sort no estilo Base44 ("-created_date" = desc, "created_date" = asc)
