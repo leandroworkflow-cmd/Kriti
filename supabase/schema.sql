@@ -455,6 +455,19 @@ create table if not exists projects (
   description text not null,
   seeking text, -- papéis buscados, separados por vírgula (ex: "Investidor, Co-Founder")
   interested_count numeric not null default 0,
+  ai_summary text,
+  ai_strengths text,
+  ai_weaknesses text,
+  canvas_problem text,
+  canvas_solution text,
+  canvas_market text,
+  canvas_customers text,
+  canvas_revenue text,
+  canvas_technology text,
+  canvas_team text,
+  canvas_investment text,
+  canvas_roadmap text,
+  ai_analyzed_at timestamptz,
   created_date timestamptz not null default now()
 );
 

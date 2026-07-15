@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import moment from "moment";
-import { ArrowLeft, Loader2, Rocket, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Rocket, Trash2, Sparkles, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const STAGES = {
@@ -13,6 +13,18 @@ const STAGES = {
   serie_a: "Série A",
 };
 
+const CANVAS_FIELDS = [
+  { key: "canvas_problem", label: "Problema" },
+  { key: "canvas_solution", label: "Solução" },
+  { key: "canvas_market", label: "Mercado" },
+  { key: "canvas_customers", label: "Clientes" },
+  { key: "canvas_revenue", label: "Receita" },
+  { key: "canvas_technology", label: "Tecnologia" },
+  { key: "canvas_team", label: "Equipe" },
+  { key: "canvas_investment", label: "Investimento" },
+  { key: "canvas_roadmap", label: "Roadmap" },
+];
+
 export default function ProjectDetail() {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -20,6 +32,7 @@ export default function ProjectDetail() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [interested, setInterested] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -60,6 +73,28 @@ export default function ProjectDetail() {
       await db.entities.Project.delete(projectId);
       navigate("/labs");
     } catch (e) { console.error(e); }
+  };
+
+  const handleAnalyze = async () => {
+    setAnalyzing(true);
+    try {
+      const res = await fetch("/api/analyze-project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: project.name,
+          area: project.area,
+          stage: project.stage,
+          description: project.description,
+          seeking: project.seeking,
+        }),
+      });
+      if (!res.ok) throw new Error("Falha ao analisar");
+      const result = await res.json();
+      const updated = await db.entities.Project.update(projectId, { ...result, ai_analyzed_at: new Date().toISOString() });
+      setProject(updated);
+    } catch (e) { console.error(e); }
+    setAnalyzing(false);
   };
 
   if (loading) {
@@ -137,6 +172,67 @@ export default function ProjectDetail() {
         >
           {interested ? "✓ Você tem interesse" : "Tenho interesse"} {project.interested_count > 0 && `· ${project.interested_count}`}
         </Button>
+
+        {project.creator_id === currentUserId && !project.ai_analyzed_at && (
+          <Button
+            onClick={handleAnalyze}
+            disabled={analyzing}
+            variant="outline"
+            className="w-full h-12 mt-3"
+          >
+            {analyzing ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analisando com IA...</>
+            ) : (
+              <><Sparkles className="w-4 h-4 mr-2" /> Analisar Projeto com IA</>
+            )}
+          </Button>
+        )}
+
+        {project.ai_analyzed_at && (
+          <div className="mt-8 pt-6 border-t border-border space-y-6">
+            <div>
+              <h3 className="font-display text-lg font-bold mb-2 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" /> Resumo Executivo
+              </h3>
+              <p className="text-sm leading-relaxed text-foreground/90">{project.ai_summary}</p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-border p-4">
+                <p className="text-xs font-semibold text-emerald-400 mb-2 flex items-center gap-1.5">
+                  <ThumbsUp className="w-3.5 h-3.5" /> Pontos fortes
+                </p>
+                <ul className="text-sm space-y-1.5">
+                  {(project.ai_strengths || "").split("\n").filter(Boolean).map((s, i) => (
+                    <li key={i} className="text-foreground/80">• {s}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-xl border border-border p-4">
+                <p className="text-xs font-semibold text-red-400 mb-2 flex items-center gap-1.5">
+                  <ThumbsDown className="w-3.5 h-3.5" /> Pontos de atenção
+                </p>
+                <ul className="text-sm space-y-1.5">
+                  {(project.ai_weaknesses || "").split("\n").filter(Boolean).map((s, i) => (
+                    <li key={i} className="text-foreground/80">• {s}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-display text-lg font-bold mb-3">Canvas do Projeto</h3>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {CANVAS_FIELDS.map(({ key, label }) => (
+                  <div key={key} className="rounded-xl border border-border p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+                    <p className="text-xs text-foreground/80 leading-relaxed">{project[key] || "—"}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
