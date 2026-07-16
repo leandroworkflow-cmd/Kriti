@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import moment from "moment";
-import { ArrowLeft, Loader2, Rocket, Trash2, Sparkles, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ArrowLeft, Loader2, Rocket, Trash2, Sparkles, ThumbsUp, ThumbsDown, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const STAGES = {
@@ -33,6 +33,7 @@ export default function ProjectDetail() {
   const [interested, setInterested] = useState(false);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [matches, setMatches] = useState([]);
 
   const loadData = useCallback(async () => {
     try {
@@ -44,6 +45,29 @@ export default function ProjectDetail() {
 
       const myInterests = await db.entities.ProjectInterest.filter({ project_id: projectId, user_id: me.id });
       setInterested(myInterests.length > 0);
+
+      // Compatibilidade: cruza o que o projeto busca (p.seeking) e a área (p.area)
+      // com o que cada pessoa realmente preencheu no perfil (expertise/interests).
+      // 100% real — sem esse dado preenchido, a pessoa simplesmente não aparece.
+      const seekingRoles = (p.seeking || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+      if (seekingRoles.length > 0 || p.area) {
+        const allProfiles = await db.entities.UserProfile.list(null, 200);
+        const scored = allProfiles
+          .filter(u => u.user_id !== p.creator_id && (u.expertise || u.interests))
+          .map(u => {
+            const expertise = (u.expertise || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+            const interests = (u.interests || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+            const roleMatches = seekingRoles.filter(r => expertise.includes(r)).length;
+            const roleScore = seekingRoles.length > 0 ? (roleMatches / seekingRoles.length) * 80 : 0;
+            const areaScore = p.area && interests.includes(p.area.trim().toLowerCase()) ? 20 : 0;
+            const score = Math.round(roleScore + areaScore);
+            return { ...u, matchScore: score };
+          })
+          .filter(u => u.matchScore > 0)
+          .sort((a, b) => b.matchScore - a.matchScore)
+          .slice(0, 5);
+        setMatches(scored);
+      }
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [projectId]);
@@ -172,6 +196,39 @@ export default function ProjectDetail() {
         >
           {interested ? "✓ Você tem interesse" : "Tenho interesse"} {project.interested_count > 0 && `· ${project.interested_count}`}
         </Button>
+
+        {project.creator_id === currentUserId && matches.length > 0 && (
+          <div className="mt-6 rounded-2xl border border-border p-5">
+            <h3 className="text-sm font-bold mb-1 flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" /> Seu projeto combina com
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Baseado no que essas pessoas preencheram no próprio perfil — só visível pra você.
+            </p>
+            <div className="space-y-3">
+              {matches.map((u) => (
+                <Link
+                  key={u.user_id}
+                  to={`/user/${u.user_id}`}
+                  className="flex items-center gap-3 hover:bg-secondary/50 rounded-xl p-2 -m-2 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0 overflow-hidden">
+                    {u.avatar_url ? (
+                      <img src={u.avatar_url} alt={u.display_name} className="w-full h-full object-cover" />
+                    ) : (
+                      u.display_name?.[0]?.toUpperCase()
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{u.display_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.expertise || u.interests}</p>
+                  </div>
+                  <span className="text-sm font-bold text-primary shrink-0">{u.matchScore}%</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {project.creator_id === currentUserId && !project.ai_analyzed_at && (
           <Button

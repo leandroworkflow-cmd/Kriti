@@ -102,6 +102,7 @@ create table if not exists user_profiles (
   username text not null unique,
   bio text,
   interests text,
+  expertise text, -- o que a pessoa pode oferecer a projetos (ex: "Desenvolvedor, Investidor")
   avatar_url text,
   cover_url text,
   verified boolean not null default false,

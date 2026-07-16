@@ -24,6 +24,7 @@ export default function Profile() {
   const [editBio, setEditBio] = useState("");
   const [editName, setEditName] = useState("");
   const [editInterests, setEditInterests] = useState("");
+  const [editExpertise, setEditExpertise] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -47,6 +48,7 @@ export default function Profile() {
           setEditBio(profiles[0].bio || "");
           setEditName(profiles[0].display_name || "");
           setEditInterests(profiles[0].interests || "");
+          setEditExpertise(profiles[0].expertise || "");
         }
         const userPosts = await db.entities.Post.filter({ author_id: me.id }, "-created_date", 30);
         setPosts(userPosts);
@@ -103,8 +105,9 @@ export default function Profile() {
         display_name: editName.trim(),
         bio: editBio.trim(),
         interests: editInterests.trim(),
+        expertise: editExpertise.trim(),
       });
-      setProfile(prev => ({ ...prev, display_name: editName.trim(), bio: editBio.trim(), interests: editInterests.trim() }));
+      setProfile(prev => ({ ...prev, display_name: editName.trim(), bio: editBio.trim(), interests: editInterests.trim(), expertise: editExpertise.trim() }));
       setEditing(false);
     } catch (e) { console.error(e); }
   };
@@ -224,6 +227,12 @@ export default function Profile() {
               placeholder="Áreas de interesse, separadas por vírgula (ex: Tecnologia, Filosofia, IA)"
               className="mt-2 w-full bg-secondary rounded-lg px-3 py-2 text-sm outline-none"
             />
+            <input
+              value={editExpertise}
+              onChange={(e) => setEditExpertise(e.target.value)}
+              placeholder="O que você pode oferecer a projetos (ex: Desenvolvedor, Investidor, Designer)"
+              className="mt-2 w-full bg-secondary rounded-lg px-3 py-2 text-sm outline-none"
+            />
           </>
         ) : (
           <>
@@ -232,6 +241,15 @@ export default function Profile() {
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {profile.interests.split(",").map(tag => tag.trim()).filter(Boolean).map((tag, i) => (
                   <span key={i} className="text-xs font-medium px-2.5 py-1 rounded-full bg-secondary text-foreground/80">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+            {profile?.expertise && (
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {profile.expertise.split(",").map(tag => tag.trim()).filter(Boolean).map((tag, i) => (
+                  <span key={i} className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary">
                     {tag}
                   </span>
                 ))}
