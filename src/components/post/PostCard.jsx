@@ -60,22 +60,128 @@ export default function PostCard({ post, currentUserId, onReact, onDelete, onBoo
   // do Facebook). No celular, tentamos o menu nativo de compartilhar do
   // sistema (que já inclui o Instagram entre as opções); no desktop, copiamos
   // o link para o usuário colar manualmente.
+  // Desenha um cartão de compartilhamento (1080x1080, formato Stories/post do
+  // Instagram) com a marca da Kriti, o autor e o texto do post.
+  const generateShareImage = () => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080;
+      canvas.height = 1080;
+      const ctx = canvas.getContext("2d");
+
+      // Fundo escuro (mesmo tom do tema)
+      const bgGradient = ctx.createLinearGradient(0, 0, 1080, 1080);
+      bgGradient.addColorStop(0, "#0f0f14");
+      bgGradient.addColorStop(1, "#17121f");
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, 1080, 1080);
+
+      // Logo Kriti: círculo roxo com ícone de cérebro
+      const logoGradient = ctx.createLinearGradient(64, 64, 160, 160);
+      logoGradient.addColorStop(0, "#a855f7");
+      logoGradient.addColorStop(1, "#4f46e5");
+      ctx.fillStyle = logoGradient;
+      ctx.beginPath();
+      ctx.roundRect(64, 64, 96, 96, 24);
+      ctx.fill();
+      ctx.font = "56px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🧠", 112, 116);
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 44px Georgia, serif";
+      ctx.fillText("Kriti", 180, 100);
+      ctx.fillStyle = "#a1a1aa";
+      ctx.font = "24px sans-serif";
+      ctx.fillText("Rede Intelectual", 180, 136);
+
+      // Categoria (se houver)
+      let cursorY = 260;
+      if (categoryLabel) {
+        ctx.fillStyle = "rgba(168, 85, 247, 0.15)";
+        const catWidth = ctx.measureText(categoryLabel.toUpperCase()).width + 48;
+        ctx.beginPath();
+        ctx.roundRect(64, cursorY, catWidth, 56, 28);
+        ctx.fill();
+        ctx.fillStyle = "#c084fc";
+        ctx.font = "bold 26px sans-serif";
+        ctx.fillText(categoryLabel.toUpperCase(), 88, cursorY + 36);
+        cursorY += 100;
+      }
+
+      // Título (se houver)
+      const wrapText = (text, x, y, maxWidth, lineHeight, font, color) => {
+        ctx.font = font;
+        ctx.fillStyle = color;
+        const words = text.split(" ");
+        let line = "";
+        let posY = y;
+        for (const word of words) {
+          const testLine = line + word + " ";
+          if (ctx.measureText(testLine).width > maxWidth && line) {
+            ctx.fillText(line, x, posY);
+            line = word + " ";
+            posY += lineHeight;
+          } else {
+            line = testLine;
+          }
+        }
+        ctx.fillText(line, x, posY);
+        return posY + lineHeight;
+      };
+
+      if (post.title) {
+        cursorY = wrapText(post.title, 64, cursorY + 20, 952, 56, "bold 46px Georgia, serif", "#ffffff") + 20;
+      }
+
+      // Corpo do texto (até ~5 linhas)
+      const bodyText = (post.content || "").slice(0, 280) + ((post.content || "").length > 280 ? "…" : "");
+      wrapText(bodyText, 64, cursorY + 20, 952, 46, "32px sans-serif", "#e4e4e7");
+
+      // Rodapé: autor + domínio
+      ctx.fillStyle = "#71717a";
+      ctx.font = "28px sans-serif";
+      ctx.fillText(`por ${post.author_name || "alguém na Kriti"}`, 64, 970);
+      ctx.fillStyle = "#a855f7";
+      ctx.font = "bold 28px sans-serif";
+      ctx.fillText("kriti.vercel.app", 64, 1010);
+
+      canvas.toBlob((blob) => resolve(blob), "image/png");
+    });
+  };
+
   const shareToInstagram = async () => {
-    const shareText = post.content ? `${post.content}\n\n${postUrl}` : postUrl;
-    if (navigator.share) {
+    const blob = await generateShareImage();
+    if (!blob) {
+      toast({ title: "Não foi possível gerar a imagem", description: "Tente novamente." });
+      return;
+    }
+    const file = new File([blob], "kriti-post.png", { type: "image/png" });
+
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
       try {
-        await navigator.share({ text: shareText, url: postUrl });
+        await navigator.share({ files: [file], title: "Kriti", text: post.content ? `${post.content}\n\n${postUrl}` : postUrl });
         return;
       } catch (e) {
         if (e?.name === "AbortError") return;
       }
     }
-    await navigator.clipboard.writeText(shareText);
+
+    // Desktop (ou navegadores sem suporte a compartilhar arquivo): baixa a
+    // imagem pra pessoa poder subir manualmente no Instagram.
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "kriti-post.png";
+    a.click();
+    URL.revokeObjectURL(url);
+    await navigator.clipboard.writeText(postUrl);
     toast({
-      title: "Link copiado",
-      description: "Abra o Instagram e cole no story ou na mensagem.",
+      title: "Imagem baixada",
+      description: "Link também copiado. Suba a imagem no Instagram e cole o link na legenda ou bio.",
     });
-    window.open("https://www.instagram.com/", "_blank");
   };
 
   const copyLink = async () => {

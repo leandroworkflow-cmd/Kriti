@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 
 import PostComposer from "@/components/post/PostComposer";
 import PostCard from "@/components/post/PostCard";
-import { Loader2, Sparkles, Lightbulb, MessageSquare, ChevronDown } from "lucide-react";
+import { Loader2, Sparkles, Lightbulb, MessageSquare, ChevronDown, Brain } from "lucide-react";
 import moment from "moment";
 moment.locale("pt-br");
 
@@ -215,7 +215,7 @@ export default function Home() {
   return (
     <div>
       <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-6 py-4">
-        <p className="text-xs font-semibold text-muted-foreground mb-2">Hoje no Kriti</p>
+        <p className="text-base font-display font-bold mb-2.5">Hoje no Kriti</p>
         <div className="grid grid-cols-2 gap-2 mb-4">
           <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2">
             <Lightbulb className="w-4 h-4 text-primary shrink-0" />
@@ -269,12 +269,14 @@ export default function Home() {
         </div>
       </div>
 
-      <PostComposer profile={profile} onPosted={loadData} />
-
       {provocation && (
-        <div className="border-2 border-purple-500/40 rounded-2xl mx-6 mt-4 mb-2 overflow-hidden">
+        <div className="border-2 border-purple-500/40 rounded-2xl mx-6 mt-4 mb-2 overflow-hidden relative">
           <div className="flex items-center gap-1.5 px-4 pt-3 text-xs font-semibold text-purple-400">
             <Sparkles className="w-3.5 h-3.5" /> Provocação do dia
+          </div>
+          <div className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 hidden sm:flex items-center justify-center">
+            <div className="absolute w-20 h-20 rounded-full bg-purple-500/30 blur-2xl" />
+            <Brain className="relative w-14 h-14 text-purple-400/80" strokeWidth={1.5} />
           </div>
           <PostCard
             post={provocation}
@@ -286,6 +288,8 @@ export default function Home() {
           />
         </div>
       )}
+
+      <PostComposer profile={profile} onPosted={loadData} />
 
       {visiblePosts.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
