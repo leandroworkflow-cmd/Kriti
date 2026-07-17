@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
-const TOTAL_QUESTIONS = 30;
+const TOTAL_QUESTIONS = 10;
 const TIME_PER_QUESTION = 12;
-const PASS_THRESHOLD = 18; // 60% to pass
+const PASS_THRESHOLD = 8; // 80% to pass
 const MAX_ATTEMPTS = 2;
 
 // Retorna a chave do mês-calendário atual, ex: "2026-07"
@@ -215,16 +215,6 @@ Timestamp de aleatoriedade: ${Date.now()}-${Math.random()}`,
         });
       }
 
-      // Mantém o histórico de TODAS as tentativas (o user_profiles acima só guarda a última)
-      await db.entities.TentativaTeste.create({
-        user_id: me.id,
-        iq_score: iqEstimate,
-        acertos: finalScore,
-        total_perguntas: TOTAL_QUESTIONS,
-        passou: passed,
-        numero_tentativa: attempts,
-      });
-
       setProfile({ ...currentProfile, ...payload });
     } catch (e) {
       console.error(e);
@@ -294,15 +284,15 @@ Timestamp de aleatoriedade: ${Date.now()}-${Math.random()}`,
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50">
                 <Zap className="w-5 h-5 text-amber-400 shrink-0" />
-                <span className="text-sm"><strong>30 perguntas</strong> geradas por IA — nunca se repetem</span>
+                <span className="text-sm"><strong>{TOTAL_QUESTIONS} perguntas</strong> geradas por IA — nunca se repetem</span>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50">
                 <Clock className="w-5 h-5 text-blue-400 shrink-0" />
-                <span className="text-sm"><strong>12 segundos</strong> por pergunta — sem tempo para consultas</span>
+                <span className="text-sm"><strong>{TIME_PER_QUESTION} segundos</strong> por pergunta — sem tempo para consultas</span>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50">
                 <Shield className="w-5 h-5 text-green-400 shrink-0" />
-                <span className="text-sm">Mínimo de <strong>60% de acertos</strong> para acesso</span>
+                <span className="text-sm">Mínimo de <strong>{Math.round((PASS_THRESHOLD / TOTAL_QUESTIONS) * 100)}% de acertos</strong> para acesso</span>
               </div>
             </div>
 
