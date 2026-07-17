@@ -274,18 +274,20 @@ export default function Home() {
           <div className="flex items-center gap-1.5 px-4 pt-3 text-xs font-semibold text-purple-400">
             <Sparkles className="w-3.5 h-3.5" /> Provocação do dia
           </div>
-          <div className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 hidden sm:flex items-center justify-center">
-            <div className="absolute w-20 h-20 rounded-full bg-purple-500/30 blur-2xl" />
-            <Brain className="relative w-14 h-14 text-purple-400/80" strokeWidth={1.5} />
+          <div className="pointer-events-none absolute right-6 top-4 hidden sm:flex items-center justify-center z-0">
+            <div className="absolute w-16 h-16 rounded-full bg-purple-500/20 blur-xl" />
+            <Brain className="relative w-9 h-9 text-purple-400/40" strokeWidth={1.5} />
           </div>
-          <PostCard
-            post={provocation}
-            currentUserId={profile?.user_id}
-            onReact={handleReact}
-            onBookmark={handleBookmark}
-            onRepost={handleRepost}
-            onQuote={handleQuote}
-          />
+          <div className="relative z-10">
+            <PostCard
+              post={provocation}
+              currentUserId={profile?.user_id}
+              onReact={handleReact}
+              onBookmark={handleBookmark}
+              onRepost={handleRepost}
+              onQuote={handleQuote}
+            />
+          </div>
         </div>
       )}
 
