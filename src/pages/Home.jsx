@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 
 import PostComposer from "@/components/post/PostComposer";
 import PostCard from "@/components/post/PostCard";
+import MarketTicker from "@/components/market/MarketTicker";
 import { Loader2, Sparkles, Lightbulb, MessageSquare, ChevronDown, Brain } from "lucide-react";
 import moment from "moment";
 moment.locale("pt-br");
@@ -214,6 +215,7 @@ export default function Home() {
 
   return (
     <div>
+      <MarketTicker />
       <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border px-6 py-4">
         <p className="text-base font-display font-bold mb-2.5">Hoje no Kriti</p>
         <div className="grid grid-cols-2 gap-2 mb-4">

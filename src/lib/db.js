@@ -13,6 +13,7 @@ const TABLE_MAP = {
   TentativaTeste: "tentativas_teste",
   Project: "projects",
   ProjectInterest: "project_interests",
+  MarketData: "market_data",
 };
 
 // Aplica um sort no estilo Base44 ("-created_date" = desc, "created_date" = asc)
