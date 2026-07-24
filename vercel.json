@@ -1,4 +1,8 @@
 {
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "crons": [
     { "path": "/api/generate-provocation", "schedule": "0 6 * * *" },
     { "path": "/api/update-market-data", "schedule": "*/15 * * * *" }
